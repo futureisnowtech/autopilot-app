@@ -32,6 +32,8 @@ export default function Dashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
   const [userName, setUserName] = useState<string>('Founder');
+  const [credits, setCredits] = useState<number>(0);
+  const [planType, setPlanType] = useState<string>('free');
   
   // Interactive state
   const [interactiveData, setInteractiveData] = useState<{ question: string, fields: any } | null>(null);
@@ -44,6 +46,13 @@ export default function Dashboard() {
       if (session) {
         setUserId(session.user.id);
         setUserName(session.user.user_metadata.full_name || session.user.email?.split('@')[0] || 'Founder');
+        
+        // Fetch credits
+        const { data: profile } = await supabase.from('profiles').select('credits, plan_type').eq('id', session.user.id).single();
+        if (profile) {
+          setCredits(profile.credits);
+          setPlanType(profile.plan_type);
+        }
       } else {
         window.location.href = '/auth';
       }
@@ -491,34 +500,6 @@ export default function Dashboard() {
         </div>
       </div>
     </>
-  );
-}
-
-function WinItem({ text }: { text: string }) {
-  return (
-    <li className="flex items-center gap-4 group">
-      <div className="w-6 h-6 rounded-lg bg-green-500/10 flex items-center justify-center border border-green-500/20 group-hover:bg-green-500/20 transition-colors">
-        <div className="w-2 h-2 rounded-full bg-green-500" />
-      </div>
-      <span className="text-base font-bold text-slate-400 group-hover:text-slate-200 transition-colors tracking-tight">{text}</span>
-    </li>
-  );
-}
-
-function TimeBlock({ time, label, type, active = false }: { time: string, label: string, type: 'locked' | 'ai', active?: boolean }) {
-  return (
-    <div className={`flex gap-6 group ${active ? 'scale-105 origin-left transition-transform' : ''}`}>
-      <span className="text-sm font-black font-mono text-slate-600 pt-1.5 uppercase tracking-tighter w-12">{time}</span>
-      <div className={`flex-1 p-5 rounded-[22px] border transition-all shadow-lg ${
-        active 
-          ? 'bg-indigo-500/20 border-indigo-500/40 ring-1 ring-indigo-500/20' 
-          : type === 'ai' 
-            ? 'bg-purple-500/5 border-purple-500/10 text-slate-300' 
-            : 'bg-white/5 border-white/5 text-slate-500'
-      }`}>
-        <p className="text-base font-black tracking-tight uppercase">{label}</p>
-      </div>
-    </div>
   );
 }
 

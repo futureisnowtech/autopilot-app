@@ -251,6 +251,3 @@ function ToneBadge({ label }: { label: string }) {
     </span>
   );
 }
-
-  );
-}
