@@ -2,9 +2,14 @@
 
 import React from 'react';
 import { Sparkles } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+import { createBrowserClient } from '@supabase/auth-helpers-nextjs';
 
 export default function AuthPage() {
+  const supabase = createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  );
+
   const handleGoogleLogin = async () => {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
@@ -14,7 +19,8 @@ export default function AuthPage() {
     });
 
     if (error) {
-      console.error('Error logging in with Google:', error.message);
+      console.error('Login Error:', error.message);
+      alert(`Login failed: ${error.message}`);
     }
   };
 
