@@ -1,27 +1,15 @@
 'use client';
 
-import React from 'react';
-import { Sparkles } from 'lucide-react';
-import { createBrowserClient } from '@supabase/auth-helpers-nextjs';
+import React, { useState } from 'react';
+import { Sparkles, Loader2 } from 'lucide-react';
 
 export default function AuthPage() {
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleGoogleLogin = async () => {
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
-      },
-    });
-
-    if (error) {
-      console.error('Login Error:', error.message);
-      alert(`Login failed: ${error.message}`);
-    }
+  const handleGoogleLogin = () => {
+    setIsLoading(true);
+    // Move the heavy lifting to the server to guarantee env variables are found
+    window.location.href = '/api/auth/google';
   };
 
   return (
@@ -40,10 +28,17 @@ export default function AuthPage() {
 
         <button 
           onClick={handleGoogleLogin}
-          className="w-full py-4 px-6 bg-white text-[#0d0d1f] rounded-full font-bold flex items-center justify-center gap-3 hover:bg-slate-200 transition-all mb-6 shadow-xl"
+          disabled={isLoading}
+          className="w-full py-4 px-6 bg-white text-[#0d0d1f] rounded-full font-bold flex items-center justify-center gap-3 hover:bg-slate-200 transition-all mb-6 shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          <img src="https://www.google.com/favicon.ico" className="w-5 h-5" alt="Google" />
-          Continue with Google
+          {isLoading ? (
+            <Loader2 className="w-5 h-5 animate-spin" />
+          ) : (
+            <>
+              <img src="https://www.google.com/favicon.ico" className="w-5 h-5" alt="Google" />
+              Continue with Google
+            </>
+          )}
         </button>
 
         <p className="text-xs text-slate-500 max-w-[280px] mx-auto leading-relaxed">
