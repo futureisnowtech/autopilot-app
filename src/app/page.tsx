@@ -15,10 +15,10 @@ export default function LandingPage() {
             <span className="text-xl font-bold tracking-tight">Autopilot</span>
           </div>
           <div className="flex items-center gap-8">
-            <Link href="/login" className="text-sm font-medium text-slate-300 hover:text-white transition-colors">
+            <Link href="/auth" className="text-sm font-medium text-slate-300 hover:text-white transition-colors">
               Log in
             </Link>
-            <Link href="/signup" className="px-5 py-2.5 bg-white text-[#0d0d1f] rounded-full text-sm font-semibold hover:bg-slate-200 transition-all">
+            <Link href="/auth" className="px-5 py-2.5 bg-white text-[#0d0d1f] rounded-full text-sm font-semibold hover:bg-slate-200 transition-all">
               Start for free
             </Link>
           </div>
@@ -45,9 +45,9 @@ export default function LandingPage() {
           </p>
 
           <div className="flex flex-col md:flex-row items-center justify-center gap-4">
-            <button className="w-full md:w-auto px-8 py-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-full font-bold text-lg flex items-center justify-center gap-2 transition-all shadow-lg shadow-indigo-500/20">
+            <Link href="/auth" className="w-full md:w-auto px-8 py-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-full font-bold text-lg flex items-center justify-center gap-2 transition-all shadow-lg shadow-indigo-500/20">
               Get Started Now <ArrowRight className="w-5 h-5" />
-            </button>
+            </Link>
             <p className="text-sm text-slate-500">Free forever for personal use.</p>
           </div>
         </div>
