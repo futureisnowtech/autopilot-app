@@ -8,6 +8,8 @@ CREATE TABLE profiles (
   avatar_url TEXT,
   timezone TEXT DEFAULT 'America/New_York',
   onboarding_completed BOOLEAN DEFAULT FALSE,
+  credits INTEGER DEFAULT 10,
+  plan_type TEXT DEFAULT 'free',
   settings JSONB DEFAULT '{
     "primary_window": "09:00-17:00",
     "overflow_window": "20:00-22:00",

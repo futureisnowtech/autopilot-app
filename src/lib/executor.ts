@@ -1,9 +1,12 @@
 import OpenAI from 'openai';
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import { supabaseAdmin } from './supabase-admin';
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
+
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 
 /**
  * The primary execution engine for AI DO tasks.
@@ -11,14 +14,19 @@ const openai = new OpenAI({
  */
 export async function executeAiDoTask(taskId: string) {
   try {
-    // 1. Fetch Task and Style Guide using Admin Client
+    // 1. Fetch Task, Profile (for plan/credits), and Style Guide
     const { data: task, error: taskError } = await supabaseAdmin
       .from('tasks')
-      .select('*, profiles(timezone, settings)')
+      .select('*, profiles(id, plan_type, credits, timezone, settings)')
       .eq('id', taskId)
       .single();
 
     if (taskError || !task) throw new Error('Task not found');
+    const profile = Array.isArray(task.profiles) ? task.profiles[0] : task.profiles;
+
+    if (!profile || profile.credits <= 0) {
+      throw new Error('Insufficient credits. Please upgrade or top up.');
+    }
 
     const { data: styleGuide } = await supabaseAdmin
       .from('style_guides')
@@ -28,10 +36,10 @@ export async function executeAiDoTask(taskId: string) {
 
     // 2. Prepare context
     const learnedRules = styleGuide?.learned_rules.join('\n') || 'None';
-    const systemPrompt = `
+    const prompt = `
       You are an elite executive assistant focused on precision and excellence. 
       Your goal is to deliver a perfect document, sheet, or note based on the user's task.
-    `;
+      
       USER STYLE GUIDE & PREFERENCES:
       ${learnedRules}
       
@@ -46,19 +54,25 @@ export async function executeAiDoTask(taskId: string) {
       Use Markdown for formatting.
     `;
 
-    // 3. Execution (GPT-4o for high quality)
-    const response = await openai.chat.completions.create({
-      model: 'gpt-4o',
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: 'Execute the task now.' }
-      ],
-      temperature: 0.7,
-    });
+    // 3. Execution (Gemini for Free, GPT-4o for Pro)
+    let output = '';
+    if (profile.plan_type === 'free') {
+      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+      const result = await model.generateContent(prompt);
+      output = result.response.text();
+    } else {
+      const response = await openai.chat.completions.create({
+        model: 'gpt-4o',
+        messages: [
+          { role: 'system', content: 'You are a senior operator.' },
+          { role: 'user', content: prompt }
+        ],
+        temperature: 0.7,
+      });
+      output = response.choices[0].message.content || '';
+    }
 
-    const output = response.choices[0].message.content || '';
-
-    // 4. Update task with deliverable
+    // 4. Update task and deduct credit
     const { error: updateError } = await supabaseAdmin
       .from('tasks')
       .update({
@@ -69,6 +83,12 @@ export async function executeAiDoTask(taskId: string) {
       .eq('id', taskId);
 
     if (updateError) throw updateError;
+
+    // Deduct 1 credit
+    await supabaseAdmin
+      .from('profiles')
+      .update({ credits: profile.credits - 1 })
+      .eq('id', profile.id);
 
     return { success: true, output };
 

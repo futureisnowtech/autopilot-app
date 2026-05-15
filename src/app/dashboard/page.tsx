@@ -57,6 +57,23 @@ export default function Dashboard() {
     fetchTasks();
 
     const channel = supabase
+      .channel('profile-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'profiles',
+          filter: `id=eq.${userId}`
+        },
+        (payload: any) => {
+          setCredits(payload.new.credits);
+          setPlanType(payload.new.plan_type);
+        }
+      )
+      .subscribe();
+
+    const taskChannel = supabase
       .channel('tasks-changes')
       .on(
         'postgres_changes',
@@ -208,9 +225,14 @@ export default function Dashboard() {
           <h1 className="text-5xl font-black tracking-tight mb-3">Hello, {userName}.</h1>
           <p className="text-xl text-slate-400 font-medium">Here is your high-leverage focus for today.</p>
         </div>
-        <Badge className="bg-indigo-500/10 text-indigo-400 border-indigo-500/20 px-6 py-2 rounded-full text-sm font-bold uppercase tracking-widest">
-          God Mode Active
-        </Badge>
+        <div className="flex gap-4">
+          <Badge className="bg-white/10 text-slate-300 border-white/10 px-6 py-2 rounded-full text-sm font-bold uppercase tracking-widest">
+            {credits} AI Credits
+          </Badge>
+          <Badge className="bg-indigo-500/10 text-indigo-400 border-indigo-500/20 px-6 py-2 rounded-full text-sm font-bold uppercase tracking-widest">
+            {planType === 'free' ? 'Standard' : 'God Mode'}
+          </Badge>
+        </div>
       </header>
 
       {/* Quick Intake Container */}

@@ -21,7 +21,17 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Title is required' }, { status: 400 });
     }
 
-    // 0. Fetch Style Guide for context
+    // 0. Fetch Profile & Style Guide for context
+    const { data: profile } = await supabaseAdmin
+      .from('profiles')
+      .select('plan_type, credits')
+      .eq('id', userId)
+      .single();
+
+    if (!profile || profile.credits <= 0) {
+      return NextResponse.json({ error: 'Insufficient credits. Please upgrade.' }, { status: 403 });
+    }
+
     const { data: styleGuide } = await supabaseAdmin
       .from('style_guides')
       .select('learned_rules')
@@ -33,7 +43,8 @@ export async function POST(req: Request) {
     // 1. AI Parsing & Enrichment with Style Guide context
     const parsedTask = await parseTaskWithAI(
       title + (notes ? `\nNotes: ${notes}` : ''),
-      styleContext
+      styleContext,
+      profile.plan_type
     );
 
     // 2. Multi-image handling (Real Storage Upload)
@@ -60,7 +71,7 @@ export async function POST(req: Request) {
 
     // 3. Interactive Prompting Loop
     if (parsedTask.status === 'AI_Do') {
-      const plan = await getExecutionPlan(parsedTask, styleContext);
+      const plan = await getExecutionPlan(parsedTask, styleContext, profile.plan_type);
       
       // If AI has questions and user hasn't provided an answer yet
       if (plan.questions && plan.questions.length > 0 && !answer) {
