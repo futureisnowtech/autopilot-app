@@ -1,10 +1,5 @@
-import OpenAI from 'openai';
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { supabaseAdmin } from './supabase-admin';
-
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 
@@ -54,23 +49,11 @@ export async function executeAiDoTask(taskId: string) {
       Use Markdown for formatting.
     `;
 
-    // 3. Execution (Gemini for Free, GPT-4o for Pro)
-    let output = '';
-    if (profile.plan_type === 'free') {
-      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-      const result = await model.generateContent(prompt);
-      output = result.response.text();
-    } else {
-      const response = await openai.chat.completions.create({
-        model: 'gpt-4o',
-        messages: [
-          { role: 'system', content: 'You are a senior operator.' },
-          { role: 'user', content: prompt }
-        ],
-        temperature: 0.7,
-      });
-      output = response.choices[0].message.content || '';
-    }
+    // 3. Execution (Gemini for all, Pro for Paid)
+    const modelName = profile.plan_type === 'free' ? "gemini-1.5-flash" : "gemini-1.5-pro";
+    const model = genAI.getGenerativeModel({ model: modelName });
+    const result = await model.generateContent(prompt);
+    const output = result.response.text();
 
     // 4. Update task and deduct credit
     const { error: updateError } = await supabaseAdmin
@@ -112,7 +95,7 @@ export async function learnFromCompletedTask(taskId: string) {
 
     if (taskError || !task || !task.feedback) return;
 
-    const systemPrompt = `
+    const prompt = `
       You are a senior operator. Analyze this completed task and the user's feedback.
       Distill ONE specific delivery preference or "lesson learned" about how the user likes things delivered.
       
@@ -123,12 +106,9 @@ export async function learnFromCompletedTask(taskId: string) {
       Keep it to 1 sentence.
     `;
 
-    const response = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
-      messages: [{ role: 'system', content: systemPrompt }],
-    });
-
-    const learning = response.choices[0].message.content?.trim();
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const result = await model.generateContent(prompt);
+    const learning = result.response.text().trim();
 
     if (learning) {
       const { data: styleGuide } = await supabaseAdmin
