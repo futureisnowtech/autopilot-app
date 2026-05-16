@@ -1,11 +1,11 @@
 import { createClient } from '@supabase/supabase-js';
+import { getSupabaseConfig } from './supabase-config';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+const { url, serviceKey } = getSupabaseConfig();
 
 // This client has admin privileges and bypasses RLS.
 // ONLY use this in server-side contexts (API routes, Server Actions).
-export const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
+export const supabaseAdmin = createClient(url, serviceKey, {
   auth: {
     autoRefreshToken: false,
     persistSession: false

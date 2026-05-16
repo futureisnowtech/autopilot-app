@@ -1,22 +1,12 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { getSupabaseConfig } from '@/lib/supabase-config';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: Request) {
   try {
-    // Read and sanitize directly from the server environment
-    let supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
-    let supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim();
-
-    // Remove quotes if present
-    supabaseUrl = supabaseUrl?.replace(/^["']|["']$/g, '');
-    supabaseKey = supabaseKey?.replace(/^["']|["']$/g, '');
-
-    // REMOVE MALFORMED SUFFIXES (The "Ghost" Fix)
-    // If the user accidentally included /rest/v1 or a trailing slash
-    supabaseUrl = supabaseUrl?.replace(/\/rest\/v1\/?$/, '');
-    supabaseUrl = supabaseUrl?.replace(/\/$/, '');
+    const { url: supabaseUrl, anonKey: supabaseKey } = getSupabaseConfig();
 
     if (!supabaseUrl || !supabaseKey) {
       return NextResponse.json(

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { getSupabaseConfig } from '@/lib/supabase-config';
 
 export const dynamic = 'force-dynamic';
 
@@ -8,26 +9,32 @@ export async function GET() {
   const service = process.env.SUPABASE_SERVICE_ROLE_KEY;
   const gemini = process.env.GEMINI_API_KEY;
 
+  const sanitized = getSupabaseConfig();
+
   return NextResponse.json({
-    url: {
-      exists: !!url,
-      length: url?.length || 0,
-      startsWithHttps: url?.startsWith('https://') || false,
-      hasTrailingSlash: url?.endsWith('/') || false,
-      hasLeadingSpace: url?.startsWith(' ') || false,
-      hasTrailingSpace: url?.endsWith(' ') || false,
-      hasQuotes: url?.includes('"') || url?.includes("'") || false,
+    raw: {
+      url: {
+        exists: !!url,
+        length: url?.length || 0,
+        startsWithHttps: url?.startsWith('https://') || false,
+        hasTrailingSlash: url?.endsWith('/') || false,
+        hasLeadingSpace: url?.startsWith(' ') || false,
+        hasTrailingSpace: url?.endsWith(' ') || false,
+        hasQuotes: url?.includes('"') || url?.includes("'") || false,
+      },
+      anonKey: {
+        exists: !!anon,
+        length: anon?.length || 0,
+        hasLeadingSpace: anon?.startsWith(' ') || false,
+        hasTrailingSpace: anon?.endsWith(' ') || false,
+        hasQuotes: anon?.includes('"') || anon?.includes("'") || false,
+      }
     },
-    anonKey: {
-      exists: !!anon,
-      length: anon?.length || 0,
-      hasLeadingSpace: anon?.startsWith(' ') || false,
-      hasTrailingSpace: anon?.endsWith(' ') || false,
-      hasQuotes: anon?.includes('"') || anon?.includes("'") || false,
-    },
-    serviceKey: {
-      exists: !!service,
-      length: service?.length || 0,
+    sanitized: {
+      url: sanitized.url,
+      urlLength: sanitized.url.length,
+      anonKeyLength: sanitized.anonKey.length,
+      serviceKeyLength: sanitized.serviceKey.length,
     },
     geminiKey: {
       exists: !!gemini,
