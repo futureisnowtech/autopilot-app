@@ -14,10 +14,16 @@ export async function GET() {
       length: url?.length || 0,
       startsWithHttps: url?.startsWith('https://') || false,
       hasTrailingSlash: url?.endsWith('/') || false,
+      hasLeadingSpace: url?.startsWith(' ') || false,
+      hasTrailingSpace: url?.endsWith(' ') || false,
+      hasQuotes: url?.includes('"') || url?.includes("'") || false,
     },
     anonKey: {
       exists: !!anon,
       length: anon?.length || 0,
+      hasLeadingSpace: anon?.startsWith(' ') || false,
+      hasTrailingSpace: anon?.endsWith(' ') || false,
+      hasQuotes: anon?.includes('"') || anon?.includes("'") || false,
     },
     serviceKey: {
       exists: !!service,
