@@ -1,20 +1,57 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Sparkles, Loader2 } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
 
 export default function AuthPage() {
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleGoogleLogin = () => {
+  useEffect(() => {
+    // Catch-all for when Supabase handles the login but stay on the page
+    // (e.g. fragment is present in URL)
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        window.location.href = '/dashboard';
+      }
+    };
+    checkSession();
+
+    // Listen for auth state changes (catches the exact moment Google returns)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (session) {
+        window.location.href = '/dashboard';
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const handleGoogleLogin = async () => {
     setIsLoading(true);
-    // Move the heavy lifting to the server to guarantee env variables are found
-    window.location.href = '/api/auth/google';
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          // Explicitly redirect to the callback handler for PKCE
+          redirectTo: `${window.location.origin}/auth/callback`,
+        },
+      });
+
+      if (error) {
+        console.error('Login error:', error.message);
+        setIsLoading(false);
+      }
+    } catch (err) {
+      console.error('Login execution error:', err);
+      setIsLoading(false);
+    }
   };
 
   return (
     <div className="min-h-screen bg-[#0d0d1f] text-white flex items-center justify-center px-6">
-      <div className="max-w-md w-full bg-white/5 border border-white/10 p-12 rounded-[40px] text-center">
+      <div className="max-w-md w-full bg-white/5 border border-white/10 p-12 rounded-[40px] text-center shadow-2xl">
         <div className="flex justify-center mb-8">
           <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center">
             <Sparkles className="w-7 h-7 text-white" />
