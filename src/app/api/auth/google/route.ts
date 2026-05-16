@@ -13,10 +13,10 @@ export async function GET(request: Request) {
     supabaseUrl = supabaseUrl?.replace(/^["']|["']$/g, '');
     supabaseKey = supabaseKey?.replace(/^["']|["']$/g, '');
 
-    // Remove trailing slash from URL
-    if (supabaseUrl?.endsWith('/')) {
-      supabaseUrl = supabaseUrl.slice(0, -1);
-    }
+    // REMOVE MALFORMED SUFFIXES (The "Ghost" Fix)
+    // If the user accidentally included /rest/v1 or a trailing slash
+    supabaseUrl = supabaseUrl?.replace(/\/rest\/v1\/?$/, '');
+    supabaseUrl = supabaseUrl?.replace(/\/$/, '');
 
     if (!supabaseUrl || !supabaseKey) {
       return NextResponse.json(
