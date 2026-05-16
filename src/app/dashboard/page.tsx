@@ -48,8 +48,12 @@ export default function Dashboard() {
         setUserName(session.user.user_metadata.full_name || session.user.email?.split('@')[0] || 'Founder');
         
         // Fetch credits
-        const { data: profile } = await supabase.from('profiles').select('credits, plan_type').eq('id', session.user.id).single();
+        const { data: profile } = await supabase.from('profiles').select('credits, plan_type, onboarding_completed').eq('id', session.user.id).single();
         if (profile) {
+          if (!profile.onboarding_completed) {
+            window.location.href = '/dashboard/onboarding';
+            return;
+          }
           setCredits(profile.credits);
           setPlanType(profile.plan_type);
         }
