@@ -15,7 +15,7 @@ export async function middleware(request: NextRequest) {
     url,
     anonKey,
     {
-...
+      cookies: {
         get(name: string) {
           return request.cookies.get(name)?.value
         },

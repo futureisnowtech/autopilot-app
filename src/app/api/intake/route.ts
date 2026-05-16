@@ -13,7 +13,7 @@ export async function POST(req: Request) {
       url,
       anonKey,
       {
-...
+        cookies: {
           get(name: string) {
             return cookieStore.get(name)?.value;
           },
