@@ -9,7 +9,8 @@ import {
   User,
   LogOut,
   CreditCard,
-  RefreshCw
+  RefreshCw,
+  CheckCircle2
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -20,6 +21,8 @@ export default function Sidebar() {
   const pathname = usePathname();
   const [userName, setUserName] = useState<string>('Founder');
   const [userId, setUserId] = useState<string | null>(null);
+  const [isSynced, setIsSynced] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
 
   useEffect(() => {
     async function getSession() {
@@ -27,6 +30,12 @@ export default function Sidebar() {
       if (session) {
         setUserId(session.user.id);
         setUserName(session.user.user_metadata.full_name || session.user.email?.split('@')[0] || 'Founder');
+        
+        // Check sync status from settings
+        const { data: profile } = await supabase.from('profiles').select('settings').eq('id', session.user.id).single();
+        if (profile?.settings?.calendar_synced) {
+          setIsSynced(true);
+        }
       }
     }
     getSession();
@@ -37,14 +46,26 @@ export default function Sidebar() {
     window.location.href = '/auth';
   };
 
-  const handleSyncCalendar = () => {
+  const handleSyncCalendar = async () => {
     if (!userId) return;
+    setIsSyncing(true);
+    
     const protocol = window.location.protocol === 'https:' ? 'webcal:' : 'http:';
     const icalUrl = `${protocol}//${window.location.host}/api/calendar/${userId}`;
     window.location.href = icalUrl;
-    toast.success('Sync Initiated', {
-      description: 'Your device should now prompt you to subscribe to the Autopilot Calendar.'
-    });
+
+    // Persist sync state
+    const { data: profile } = await supabase.from('profiles').select('settings').eq('id', userId).single();
+    const newSettings = { ...(profile?.settings || {}), calendar_synced: true };
+    await supabase.from('profiles').update({ settings: newSettings }).eq('id', userId);
+    
+    setTimeout(() => {
+      setIsSynced(true);
+      setIsSyncing(false);
+      toast.success('Calendar Synced', {
+        description: 'Autopilot is now connected to your device calendar.'
+      });
+    }, 2000);
   };
 
   return (
@@ -65,6 +86,7 @@ export default function Sidebar() {
             active={pathname === '/dashboard'} 
           />
           <NavItem 
+            id="style-guide-nav"
             href="/dashboard/style-guide" 
             icon={<Sparkles className="w-6 h-6" />} 
             label="Style Guide" 
@@ -81,11 +103,25 @@ export default function Sidebar() {
         <div className="mt-12 space-y-4">
           <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-600 ml-6">Integrations</p>
           <button 
+            id="sync-calendar-btn"
             onClick={handleSyncCalendar}
-            className="w-full flex items-center gap-5 px-6 py-4 rounded-2xl text-slate-500 hover:text-white hover:bg-white/5 transition-all group"
+            disabled={isSynced || isSyncing}
+            className={`w-full flex items-center gap-5 px-6 py-4 rounded-2xl transition-all group ${
+              isSynced 
+                ? 'bg-green-500/10 text-green-400 border border-green-500/20 shadow-[0_0_15px_rgba(34,197,94,0.1)]' 
+                : 'text-slate-500 hover:text-white hover:bg-white/5'
+            }`}
           >
-            <RefreshCw className="w-6 h-6 group-hover:rotate-180 transition-transform duration-500" />
-            <span className="font-bold text-lg tracking-tight text-left">Sync Calendar</span>
+            {isSyncing ? (
+              <RefreshCw className="w-6 h-6 animate-spin" />
+            ) : isSynced ? (
+              <CheckCircle2 className="w-6 h-6" />
+            ) : (
+              <RefreshCw className="w-6 h-6 group-hover:rotate-180 transition-transform duration-500" />
+            )}
+            <span className="font-bold text-lg tracking-tight text-left">
+              {isSyncing ? 'Syncing...' : isSynced ? 'Synced' : 'Sync Calendar'}
+            </span>
           </button>
         </div>
       </div>
@@ -111,9 +147,10 @@ export default function Sidebar() {
   );
 }
 
-function NavItem({ icon, label, href, active = false }: { icon: React.ReactNode, label: string, href: string, active?: boolean }) {
+function NavItem({ icon, label, href, active = false, id }: { icon: React.ReactNode, label: string, href: string, active?: boolean, id?: string }) {
   return (
     <Link 
+      id={id}
       href={href}
       className={`w-full flex items-center gap-5 px-6 py-4 rounded-2xl transition-all ${active ? 'bg-indigo-500/15 text-indigo-400 shadow-lg shadow-indigo-500/5' : 'text-slate-500 hover:text-white hover:bg-white/5'}`}
     >

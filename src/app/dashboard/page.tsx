@@ -24,6 +24,7 @@ import { Input } from '@/components/ui/input';
 import { supabase } from '@/lib/supabase';
 import { Task } from '@/types/database';
 import { toast } from "sonner"
+import Tutorial from '@/components/tutorial';
 
 export default function Dashboard() {
   const [intakeValue, setIntakeValue] = useState('');
@@ -34,6 +35,7 @@ export default function Dashboard() {
   const [userName, setUserName] = useState<string>('Founder');
   const [credits, setCredits] = useState<number>(0);
   const [planType, setPlanType] = useState<string>('free');
+  const [showTutorial, setShowTutorial] = useState(false);
   
   // Interactive state
   const [interactiveData, setInteractiveData] = useState<{ question: string, fields: any } | null>(null);
@@ -47,8 +49,8 @@ export default function Dashboard() {
         setUserId(session.user.id);
         setUserName(session.user.user_metadata.full_name || session.user.email?.split('@')[0] || 'Founder');
         
-        // Fetch credits
-        const { data: profile } = await supabase.from('profiles').select('credits, plan_type, onboarding_completed').eq('id', session.user.id).single();
+        // Fetch credits and tutorial state
+        const { data: profile } = await supabase.from('profiles').select('credits, plan_type, onboarding_completed, settings').eq('id', session.user.id).single();
         if (profile) {
           if (!profile.onboarding_completed) {
             window.location.href = '/dashboard/onboarding';
@@ -56,6 +58,9 @@ export default function Dashboard() {
           }
           setCredits(profile.credits);
           setPlanType(profile.plan_type);
+          if (!profile.settings?.tutorial_completed) {
+            setShowTutorial(true);
+          }
         }
       } else {
         window.location.href = '/auth';
@@ -233,9 +238,19 @@ export default function Dashboard() {
 
   return (
     <>
+      {showTutorial && userId && <Tutorial userId={userId} onComplete={() => setShowTutorial(false)} />}
       <header className="flex justify-between items-end mb-16">
         <div>
-          <h1 className="text-5xl font-black tracking-tight mb-3">Hello, {userName}.</h1>
+          <h1 className="text-5xl font-black tracking-tight mb-3 flex items-center gap-4">
+            Hello, {userName}.
+            <button 
+              onClick={() => setShowTutorial(true)}
+              className="p-2 rounded-full bg-white/5 hover:bg-white/10 text-slate-500 hover:text-indigo-400 transition-all shadow-xl border border-white/5 group"
+              title="Replay Tutorial"
+            >
+              <Sparkles className="w-5 h-5 group-hover:scale-110 transition-transform" />
+            </button>
+          </h1>
           <p className="text-xl text-slate-400 font-medium">Here is your high-leverage focus for today.</p>
         </div>
         <div className="flex gap-4">
@@ -249,12 +264,13 @@ export default function Dashboard() {
       </header>
 
       {/* Quick Intake Container */}
-      <div className="mb-16 space-y-4">
+      <div id="intake-engine" className="mb-16 space-y-4">
         <div className="relative group">
           <div className="absolute left-8 top-1/2 -translate-y-1/2">
             {isSubmitting ? <Loader2 className="w-8 h-8 text-indigo-500 animate-spin" /> : <Plus className="w-8 h-8 text-slate-500 group-focus-within:text-indigo-500 transition-colors" />}
           </div>
           <Input 
+            id="intake-input"
             value={intakeValue}
             onChange={(e) => setIntakeValue(e.target.value)}
             onKeyDown={handleCapture}
@@ -321,8 +337,9 @@ export default function Dashboard() {
         {/* Left Column: Focus & Backlog */}
         <div className="lg:col-span-2 space-y-16">
           {/* Top Priority */}
-          <section>
+          <section id="immediate-focus">
             <div className="flex items-center justify-between mb-8">
+
               <h2 className="text-base font-black uppercase tracking-[0.2em] text-slate-500">Immediate Focus</h2>
               <span className="text-sm font-bold text-indigo-400 px-3 py-1 bg-indigo-500/10 rounded-lg">#1 Rank</span>
             </div>
