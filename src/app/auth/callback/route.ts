@@ -10,11 +10,12 @@ export async function GET(request: Request) {
   if (code) {
     const { url, anonKey } = getSupabaseConfig();
     const cookieStore = await cookies();
+    
     const supabase = createServerClient(
       url,
       anonKey,
       {
-...
+        cookies: {
           get(name: string) {
             return cookieStore.get(name)?.value;
           },
@@ -27,7 +28,11 @@ export async function GET(request: Request) {
         },
       }
     );
-    await supabase.auth.exchangeCodeForSession(code);
+    
+    const { error } = await supabase.auth.exchangeCodeForSession(code);
+    if (error) {
+      console.error('Exchange error:', error.message);
+    }
   }
 
   // URL to redirect to after sign in process completes
