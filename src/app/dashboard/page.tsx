@@ -2,55 +2,108 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { 
-  Plus, 
+  Mic, 
+  MicOff, 
+  Send, 
   Calendar, 
   CheckCircle2, 
-  Target, 
   Sparkles, 
-  ChevronRight,
-  Clock,
-  Briefcase,
-  User,
-  LogOut,
-  Loader2,
-  MessageSquare,
-  ArrowRight
+  Clock, 
+  User, 
+  LogOut, 
+  Loader2, 
+  ArrowRight, 
+  X, 
+  Trash2,
+  AlertCircle,
+  Copy,
+  ExternalLink,
+  Keyboard,
+  Settings
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { supabase } from '@/lib/supabase';
 import { Task } from '@/types/database';
-import { toast } from "sonner"
-import Tutorial from '@/components/tutorial';
+import { toast } from "sonner";
 
 export default function Dashboard() {
-  const [intakeValue, setIntakeValue] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [userId, setUserId] = useState<string | null>(null);
   const [userName, setUserName] = useState<string>('Founder');
+  const [userId, setUserId] = useState<string | null>(null);
   const [credits, setCredits] = useState<number>(0);
   const [planType, setPlanType] = useState<string>('free');
-  const [showTutorial, setShowTutorial] = useState(false);
-  
-  // Interactive state
-  const [interactiveData, setInteractiveData] = useState<{ question: string, fields: any } | null>(null);
-  const [answer, setAnswer] = useState('');
-  const answerInputRef = useRef<HTMLInputElement>(null);
+  const [calendarId, setCalendarId] = useState('');
+  const [isSynced, setIsSynced] = useState(false);
+  const [showSyncModal, setShowSyncModal] = useState(false);
 
+  // Intake UI states
+  const [inputType, setInputType] = useState<'voice' | 'text'>('voice');
+  const [textInput, setTextInput] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [statusMessage, setStatusMessage] = useState('');
+  
+  // Voice recording states
+  const [isRecording, setIsRecording] = useState(false);
+  const [transcript, setTranscript] = useState('');
+  const recognitionRef = useRef<any>(null);
+
+  // Success view state
+  const [successTask, setSuccessTask] = useState<any | null>(null);
+  const [showAiInsights, setShowAiInsights] = useState(false);
+
+  // Recent feed state
+  const [recentTasks, setRecentTasks] = useState<Task[]>([]);
+  const [isLoadingFeed, setIsLoadingFeed] = useState(true);
+
+  // Web Speech API Initialization
   useEffect(() => {
-    async function getSession() {
+    if (typeof window !== 'undefined') {
+      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      if (SpeechRecognition) {
+        const rec = new SpeechRecognition();
+        rec.continuous = true;
+        rec.interimResults = true;
+        rec.lang = 'en-US';
+
+        rec.onresult = (event: any) => {
+          let currentTranscript = '';
+          for (let i = event.resultIndex; i < event.results.length; i++) {
+            currentTranscript += event.results[i][0].transcript;
+          }
+          setTranscript(currentTranscript);
+        };
+
+        rec.onerror = (e: any) => {
+          console.error('Speech recognition error:', e);
+          setIsRecording(false);
+        };
+
+        rec.onend = () => {
+          setIsRecording(false);
+        };
+
+        recognitionRef.current = rec;
+      }
+    }
+  }, []);
+
+  // Fetch session, profile and tasks
+  useEffect(() => {
+    async function init() {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
         setUserId(session.user.id);
         setUserName(session.user.user_metadata.full_name || session.user.email?.split('@')[0] || 'Founder');
         
-        // Fetch credits and tutorial state
-        const { data: profile } = await supabase.from('profiles').select('credits, plan_type, onboarding_completed, settings').eq('id', session.user.id).single();
+        // Fetch profile
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('credits, plan_type, google_calendar_id, onboarding_completed')
+          .eq('id', session.user.id)
+          .single();
+
         if (profile) {
           if (!profile.onboarding_completed) {
             window.location.href = '/dashboard/onboarding';
@@ -58,120 +111,143 @@ export default function Dashboard() {
           }
           setCredits(profile.credits);
           setPlanType(profile.plan_type);
-          if (!profile.settings?.tutorial_completed) {
-            setShowTutorial(true);
+          if (profile.google_calendar_id) {
+            setCalendarId(profile.google_calendar_id);
+            setIsSynced(true);
           }
         }
+        
+        fetchRecentTasks(session.user.id);
       } else {
         window.location.href = '/auth';
       }
     }
-    getSession();
+    init();
   }, []);
 
-  useEffect(() => {
-    if (!userId) return;
-    
-    fetchTasks();
-
-    const channel = supabase
-      .channel('profile-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'profiles',
-          filter: `id=eq.${userId}`
-        },
-        (payload: any) => {
-          setCredits(payload.new.credits);
-          setPlanType(payload.new.plan_type);
-        }
-      )
-      .subscribe();
-
-    const taskChannel = supabase
-      .channel('tasks-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'tasks',
-          filter: `user_id=eq.${userId}`
-        },
-        () => {
-          fetchTasks();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [userId]);
-
-  useEffect(() => {
-    if (interactiveData && answerInputRef.current) {
-      answerInputRef.current.focus();
-    }
-  }, [interactiveData]);
-
-  async function fetchTasks() {
-    if (!userId) return;
-
+  async function fetchRecentTasks(uid: string) {
+    setIsLoadingFeed(true);
     const { data, error } = await supabase
       .from('tasks')
       .select('*')
-      .eq('user_id', userId)
-      .neq('status', 'Done')
-      .order('priority', { ascending: true, nullsFirst: false })
-      .order('urgency', { ascending: false });
+      .eq('user_id', uid)
+      .order('created_at', { ascending: false })
+      .limit(3);
 
-    if (error) {
-      console.error('Error fetching tasks:', error);
-      toast.error("Failed to sync data");
-    } else {
-      setTasks(data || []);
+    if (!error && data) {
+      setRecentTasks(data);
     }
-    setIsLoading(false);
+    setIsLoadingFeed(false);
   }
 
-  const handleCapture = async (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && intakeValue.trim()) {
-      executeCapture(intakeValue);
+  // Voice capture start/stop
+  const toggleRecording = () => {
+    if (isRecording) {
+      recognitionRef.current?.stop();
+      setIsRecording(false);
+    } else {
+      if (recognitionRef.current) {
+        setTranscript('');
+        setIsRecording(true);
+        recognitionRef.current.start();
+      } else {
+        toast.error("Browser speech recognition is not supported.");
+      }
     }
   };
 
-  const executeCapture = async (input: string, userAnswer?: string) => {
-    if (!userId) return;
+  const stopRecording = () => {
+    if (isRecording) {
+      recognitionRef.current?.stop();
+      setIsRecording(false);
+    }
+  };
+
+  // Submit voice/text note to API
+  const handleIntakeSubmit = async (inputStr: string) => {
+    const finalInput = inputStr.trim();
+    if (!finalInput || !userId) return;
+
     setIsSubmitting(true);
+    setSuccessTask(null);
+    setStatusMessage('AI parsing note context...');
+
     try {
+      // Step messages to make it feel responsive and magical
+      setTimeout(() => setStatusMessage('Analyzing schedule gaps...'), 1000);
+      setTimeout(() => setStatusMessage('Syncing to Google Calendar...'), 2000);
+
       const response = await fetch('/api/intake', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          title: input, 
-          answer: userAnswer 
-        }),
+        body: JSON.stringify({ title: finalInput }),
       });
       
       const result = await response.json();
       
-      if (result.interactive) {
-        setInteractiveData({ question: result.question, fields: result.fields });
-        toast("AI Brain: Question", { description: result.question });
+      if (response.ok && result.success) {
+        setSuccessTask(result.task);
+        setShowAiInsights(true);
+        setTextInput('');
+        setTranscript('');
+        
+        toast.success("Synchronized successfully!", {
+          description: result.calendar_synced 
+            ? "Event created on Google Calendar" 
+            : "Task saved to backlog (Connect calendar to auto-sync)"
+        });
+
+        // Refresh feed
+        fetchRecentTasks(userId);
       } else {
-        toast.success("God Mode: Captured", { description: result.message });
-        setIntakeValue('');
-        setInteractiveData(null);
-        setAnswer('');
+        throw new Error(result.error || "Capture failed");
       }
-    } catch (err) {
-      toast.error("Capture failed");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to process intake note");
     } finally {
       setIsSubmitting(false);
+      setStatusMessage('');
+    }
+  };
+
+  // Cancel or delete task
+  const handleDeleteTask = async (taskId: string) => {
+    toast.promise(
+      fetch('/api/intake/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ taskId }),
+      }).then(async res => {
+        if (!res.ok) throw new Error();
+        if (userId) fetchRecentTasks(userId);
+        if (successTask?.id === taskId) {
+          setSuccessTask(null);
+        }
+      }),
+      {
+        loading: 'Deleting task and calendar event...',
+        success: 'Successfully unscheduled & deleted',
+        error: 'Failed to delete task',
+      }
+    );
+  };
+
+  const handleSaveCalendarSync = async () => {
+    if (!userId || !calendarId) return;
+    
+    const { error } = await supabase
+      .from('profiles')
+      .update({ google_calendar_id: calendarId })
+      .eq('id', userId);
+
+    if (error) {
+      toast.error('Failed to save calendar ID');
+    } else {
+      setIsSynced(true);
+      setShowSyncModal(false);
+      toast.success('Google Calendar Connected', {
+        description: 'Autopilot will now auto-schedule and sync events.'
+      });
     }
   };
 
@@ -180,374 +256,419 @@ export default function Dashboard() {
     window.location.href = '/auth';
   };
 
-  const handleAnswerSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (answer.trim() && interactiveData) {
-      executeCapture(intakeValue, answer);
-    }
-  };
-
-  const executeAiDo = async (taskId: string) => {
-    toast.promise(
-      fetch('/api/execute', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ taskId }),
-      }).then(res => {
-        if (!res.ok) throw new Error();
-        return res.json();
-      }),
-      {
-        loading: 'AI is researching and executing...',
-        success: 'Deliverable ready for review',
-        error: 'Execution failed',
-      }
-    );
-  };
-
-  const markDone = async (taskId: string) => {
-    const { error } = await supabase
-      .from('tasks')
-      .update({ status: 'Done' })
-      .eq('id', taskId);
-    
-    if (error) {
-      toast.error("Failed to update task");
-    } else {
-      toast.success("Task archived");
-    }
-  };
-
-  const topTask = tasks[0];
-
-
-  const backlog = tasks.slice(1);
-
-  if (isLoading) {
-    return (
-      <div className="h-full flex items-center justify-center">
-        <motion.div
-          animate={{ scale: [1, 1.1, 1], opacity: [0.5, 1, 0.5] }}
-          transition={{ duration: 2, repeat: Infinity }}
-        >
-          <Sparkles className="w-16 h-16 text-indigo-500" />
-        </motion.div>
-      </div>
-    );
-  }
-
   return (
-    <>
-      {showTutorial && userId && <Tutorial userId={userId} onComplete={() => setShowTutorial(false)} />}
-      <header className="flex justify-between items-end mb-16">
-        <div>
-          <h1 className="text-5xl font-black tracking-tight mb-3 flex items-center gap-4">
-            Hello, {userName}.
-            <button 
-              onClick={() => setShowTutorial(true)}
-              className="p-2 rounded-full bg-white/5 hover:bg-white/10 text-slate-500 hover:text-indigo-400 transition-all shadow-xl border border-white/5 group"
-              title="Replay Tutorial"
-            >
-              <Sparkles className="w-5 h-5 group-hover:scale-110 transition-transform" />
-            </button>
-          </h1>
-          <p className="text-xl text-slate-400 font-medium">Here is your high-leverage focus for today.</p>
+    <div className="space-y-12">
+      {/* Upper Navigation & Headers */}
+      <header className="flex justify-between items-center pb-8 border-b border-white/5">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/20">
+            <Sparkles className="w-6 h-6 text-white" />
+          </div>
+          <span className="text-2xl font-black tracking-tighter text-indigo-400 uppercase">Autopilot</span>
         </div>
-        <div className="flex gap-4">
-          <Badge className="bg-white/10 text-slate-300 border-white/10 px-6 py-2 rounded-full text-sm font-bold uppercase tracking-widest">
-            {credits} AI Credits
+
+        <div className="flex items-center gap-4">
+          <Button 
+            onClick={() => setShowSyncModal(true)}
+            variant="ghost"
+            className={`h-11 rounded-full px-5 font-bold transition-all border flex gap-2 items-center ${
+              isSynced 
+                ? 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20 hover:bg-indigo-500/20 shadow-[0_0_15px_rgba(99,102,241,0.1)]' 
+                : 'text-amber-400 border-amber-500/20 hover:bg-amber-500/10 bg-amber-500/5'
+            }`}
+          >
+            <Calendar className="w-4 h-4" />
+            <span className="text-xs tracking-tight">
+              {isSynced ? 'Calendar Active' : 'Setup Sync'}
+            </span>
+          </Button>
+
+          <Badge className="bg-white/5 text-slate-300 border-white/10 px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider">
+            {credits} Credits
           </Badge>
-          <Badge className="bg-indigo-500/10 text-indigo-400 border-indigo-500/20 px-6 py-2 rounded-full text-sm font-bold uppercase tracking-widest">
-            {planType === 'free' ? 'Standard' : 'God Mode'}
-          </Badge>
+          
+          <Button 
+            onClick={handleSignOut} 
+            variant="ghost" 
+            size="icon" 
+            className="w-11 h-11 rounded-full hover:bg-white/5 text-slate-500 hover:text-white"
+            title="Sign out"
+          >
+            <LogOut className="w-5 h-5" />
+          </Button>
         </div>
       </header>
 
-      {/* Quick Intake Container */}
-      <div id="intake-engine" className="mb-16 space-y-4">
-        <div className="relative group">
-          <div className="absolute left-8 top-1/2 -translate-y-1/2">
-            {isSubmitting ? <Loader2 className="w-8 h-8 text-indigo-500 animate-spin" /> : <Plus className="w-8 h-8 text-slate-500 group-focus-within:text-indigo-500 transition-colors" />}
-          </div>
-          <Input 
-            id="intake-input"
-            value={intakeValue}
-            onChange={(e) => setIntakeValue(e.target.value)}
-            onKeyDown={handleCapture}
-            disabled={isSubmitting || !!interactiveData}
-            placeholder="What needs to happen? (Type 'AI DO' to delegate)"
-            className="h-20 pl-20 pr-8 bg-white/5 border-white/10 rounded-[24px] text-2xl font-medium focus-visible:ring-indigo-500 focus-visible:border-indigo-500 transition-all shadow-2xl shadow-black/40"
-          />
-          {intakeValue && !isSubmitting && !interactiveData && (
-            <div className="absolute right-8 top-1/2 -translate-y-1/2">
-              <kbd className="px-3 py-1.5 bg-white/10 rounded-lg text-xs font-bold text-slate-400 uppercase tracking-widest border border-white/10">Enter</kbd>
-            </div>
-          )}
+      {/* Main Single-Action Container */}
+      <section className="max-w-xl mx-auto text-center space-y-8 pt-6">
+        <div>
+          <h1 className="text-4xl md:text-5xl font-black tracking-tight mb-2">
+            Hello, {userName}.
+          </h1>
+          <p className="text-lg text-slate-400 font-medium">
+            Leave a voice or text note. We'll handle the calendar.
+          </p>
         </div>
 
-        {/* Interactive Question Overlay */}
-        <AnimatePresence>
-          {interactiveData && (
-            <motion.div
-              initial={{ opacity: 0, y: -20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              className="bg-indigo-600 rounded-[24px] p-8 shadow-2xl shadow-indigo-500/40 relative overflow-hidden"
-            >
-              <div className="absolute right-0 top-0 p-8 opacity-10">
-                <MessageSquare className="w-32 h-32 rotate-12" />
-              </div>
-              <div className="relative z-10">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="p-2 bg-white/20 rounded-lg">
-                    <Sparkles className="w-5 h-5 text-white" />
-                  </div>
-                  <span className="text-sm font-black uppercase tracking-widest text-indigo-100">AI Needs Context</span>
-                </div>
-                <h2 className="text-2xl font-bold mb-6 text-white leading-tight">
-                  {interactiveData.question}
-                </h2>
-                <form onSubmit={handleAnswerSubmit} className="flex gap-4">
-                  <Input 
-                    ref={answerInputRef}
-                    value={answer}
-                    onChange={(e) => setAnswer(e.target.value)}
-                    placeholder="Your answer..."
-                    className="h-14 bg-white/10 border-white/20 rounded-xl text-xl placeholder:text-indigo-200/50 text-white focus-visible:ring-white"
-                  />
-                  <Button type="submit" className="h-14 px-8 bg-white text-indigo-600 hover:bg-indigo-50 rounded-xl font-bold text-lg">
-                    Submit <ArrowRight className="ml-2 w-5 h-5" />
-                  </Button>
-                  <Button 
-                    type="button" 
-                    onClick={() => setInteractiveData(null)}
-                    variant="ghost" 
-                    className="h-14 text-indigo-100 hover:bg-white/10 rounded-xl"
-                  >
-                    Cancel
-                  </Button>
-                </form>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-16">
-        {/* Left Column: Focus & Backlog */}
-        <div className="lg:col-span-2 space-y-16">
-          {/* Top Priority */}
-          <section id="immediate-focus">
-            <div className="flex items-center justify-between mb-8">
-
-              <h2 className="text-base font-black uppercase tracking-[0.2em] text-slate-500">Immediate Focus</h2>
-              <span className="text-sm font-bold text-indigo-400 px-3 py-1 bg-indigo-500/10 rounded-lg">#1 Rank</span>
+        <Card className="bg-white/[0.02] border-white/10 rounded-[40px] p-8 shadow-2xl relative overflow-hidden backdrop-blur-xl">
+          <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-indigo-500 to-purple-600" />
+          
+          <CardContent className="p-0 space-y-8 pt-4">
+            {/* Input Selection Toggle */}
+            <div className="flex justify-center p-1 bg-white/5 border border-white/5 rounded-full w-fit mx-auto">
+              <button 
+                onClick={() => { setInputType('voice'); stopRecording(); }}
+                className={`px-6 py-2.5 rounded-full text-sm font-bold tracking-tight transition-all flex items-center gap-2 ${inputType === 'voice' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
+              >
+                <Mic className="w-4 h-4" /> Voice Note
+              </button>
+              <button 
+                onClick={() => { setInputType('text'); stopRecording(); }}
+                className={`px-6 py-2.5 rounded-full text-sm font-bold tracking-tight transition-all flex items-center gap-2 ${inputType === 'text' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
+              >
+                <Keyboard className="w-4 h-4" /> Text Note
+              </button>
             </div>
-            
+
+            {/* Submitting Status View */}
             <AnimatePresence mode="wait">
-              {topTask ? (
-                <motion.div
-                  key={topTask.id}
+              {isSubmitting ? (
+                <motion.div 
+                  key="submitting"
                   initial={{ opacity: 0, scale: 0.95 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.95 }}
-                  transition={{ type: "spring", damping: 20 }}
+                  className="py-12 flex flex-col items-center justify-center space-y-6"
                 >
-                  <Card className="bg-gradient-to-br from-indigo-600 to-purple-700 border-none rounded-[40px] overflow-hidden shadow-2xl shadow-indigo-500/20 group">
-                    <CardContent className="p-12">
-                      <div className="flex justify-between items-start mb-10">
-                        <Badge className="bg-white/20 text-white border-none backdrop-blur-md px-4 py-1.5 text-xs font-bold uppercase tracking-wider">
-                          {topTask.client || 'General'}
-                        </Badge>
-                        <div className="flex gap-2">
-                          {topTask.status === 'AI_Do' && <Badge className="bg-purple-400 text-purple-900 border-none px-4 py-1.5 text-xs font-black uppercase">Autonomous</Badge>}
-                          <Badge className={`${
-                            topTask.urgency === 'Urgent' ? 'bg-red-500 text-white' : 
-                            topTask.urgency === 'High' ? 'bg-amber-500 text-white' : 'bg-indigo-400 text-white'
-                          } border-none shadow-lg px-4 py-1.5 text-xs font-black uppercase tracking-wider`}>
-                            {topTask.urgency}
-                          </Badge>
-                        </div>
-                      </div>
-                      <h3 className="text-4xl md:text-5xl font-black text-white mb-6 leading-[1.1] tracking-tight">
-                        {topTask.title}
-                      </h3>
-                      {topTask.notes && (
-                        <p className="text-indigo-100/80 mb-10 text-xl leading-relaxed line-clamp-3 font-medium">
-                          {topTask.notes}
-                        </p>
+                  <div className="relative">
+                    <div className="w-20 h-20 rounded-full border-4 border-indigo-500/10 border-t-indigo-500 animate-spin flex items-center justify-center" />
+                    <Sparkles className="absolute inset-0 m-auto w-8 h-8 text-indigo-400 animate-pulse" />
+                  </div>
+                  <div className="text-center">
+                    <p className="text-xl font-bold uppercase tracking-widest text-indigo-400 animate-pulse">Autopilot Active</p>
+                    <p className="text-sm text-slate-400 font-medium mt-1">{statusMessage}</p>
+                  </div>
+                </motion.div>
+              ) : inputType === 'voice' ? (
+                /* Voice Interface */
+                <motion.div 
+                  key="voice-mode"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  className="space-y-6"
+                >
+                  <div className="flex justify-center py-6">
+                    <button 
+                      onClick={toggleRecording}
+                      className={`w-32 h-32 rounded-full flex items-center justify-center relative transition-all group ${
+                        isRecording 
+                          ? 'bg-red-500 text-white shadow-[0_0_40px_rgba(239,68,68,0.5)] scale-105' 
+                          : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-2xl hover:scale-105 active:scale-95'
+                      }`}
+                    >
+                      {/* Pulse Ring when recording */}
+                      {isRecording && (
+                        <span className="absolute inset-0 rounded-full bg-red-500/30 animate-ping" />
                       )}
-                      <div className="flex items-center gap-10">
-                        <div className="flex items-center gap-3 text-indigo-100/60 bg-white/5 px-5 py-2.5 rounded-2xl border border-white/5">
-                          <Clock className="w-6 h-6" />
-                          <span className="font-bold text-lg uppercase tracking-tighter">{topTask.est_minutes} min</span>
-                        </div>
-                        <div className="ml-auto flex gap-4">
-                          {topTask.status === 'AI_Do' && (
-                            <Button 
-                              onClick={() => executeAiDo(topTask.id)}
-                              className="bg-purple-500 hover:bg-purple-400 text-white rounded-full px-10 py-8 font-black text-xl shadow-2xl hover:scale-105 active:scale-95 transition-all"
-                            >
-                              Execute AI DO <Sparkles className="ml-3 w-8 h-8" />
-                            </Button>
-                          )}
-                          <Button 
-                            onClick={() => markDone(topTask.id)}
-                            className="bg-white text-indigo-600 hover:bg-indigo-50 rounded-full px-10 py-8 font-black text-xl shadow-2xl hover:scale-105 active:scale-95 transition-all"
-                          >
-                            Mark as Done <CheckCircle2 className="ml-3 w-8 h-8" />
-                          </Button>
-                        </div>
-                      </div>
+                      {isRecording ? <MicOff className="w-12 h-12" /> : <Mic className="w-12 h-12" />}
+                    </button>
+                  </div>
 
-                    </CardContent>
-                  </Card>
+                  <div className="text-center space-y-2">
+                    <p className={`text-lg font-black uppercase tracking-widest ${isRecording ? 'text-red-400' : 'text-slate-400'}`}>
+                      {isRecording ? 'Listening...' : 'Tap Mic To Talk'}
+                    </p>
+                    <p className="text-xs text-slate-600 font-medium">
+                      {isRecording ? 'Click again when finished' : 'Schedules automatically based on note analysis'}
+                    </p>
+                  </div>
+
+                  {/* Realtime Transcript view */}
+                  {transcript && (
+                    <motion.div 
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      className="p-6 bg-white/5 border border-white/5 rounded-2xl text-left"
+                    >
+                      <p className="text-xs font-black uppercase tracking-wider text-slate-500 mb-2">Transcript Preview</p>
+                      <p className="text-lg font-medium text-slate-200 leading-relaxed italic">"{transcript}"</p>
+                      <div className="mt-4 flex justify-end">
+                        <Button 
+                          onClick={() => handleIntakeSubmit(transcript)}
+                          className="bg-white text-indigo-600 hover:bg-slate-100 rounded-xl font-bold px-6 h-11"
+                        >
+                          Process Note <Send className="w-4 h-4 ml-2" />
+                        </Button>
+                      </div>
+                    </motion.div>
+                  )}
                 </motion.div>
               ) : (
-                <div className="p-32 border-2 border-dashed border-white/5 rounded-[48px] text-center bg-white/[0.02]">
-                  <p className="text-slate-500 text-2xl font-bold tracking-tight uppercase">Dashboard Clear. Reclaiming your day.</p>
-                </div>
+                /* Text Interface */
+                <motion.div 
+                  key="text-mode"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  className="space-y-4 text-left"
+                >
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 ml-4">Text Input Note</label>
+                    <textarea 
+                      value={textInput}
+                      onChange={(e) => setTextInput(e.target.value)}
+                      placeholder="e.g. Schedule call with Syed tomorrow at 2 PM to review TAGtargets, 30 minutes"
+                      className="w-full h-32 bg-white/5 border border-white/10 rounded-2xl p-5 text-white placeholder:text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-medium text-lg"
+                    />
+                  </div>
+                  <Button 
+                    onClick={() => handleIntakeSubmit(textInput)}
+                    disabled={!textInput.trim()}
+                    className="w-full h-14 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl font-bold text-lg shadow-xl disabled:opacity-50"
+                  >
+                    Process Note <Send className="w-4 h-4 ml-2" />
+                  </Button>
+                </motion.div>
               )}
             </AnimatePresence>
-          </section>
+          </CardContent>
+        </Card>
 
-          {/* Backlog */}
-          <section>
-            <div className="flex items-center justify-between mb-8">
-              <h2 className="text-base font-black uppercase tracking-[0.2em] text-slate-500">On Deck</h2>
-              <Button variant="ghost" size="sm" className="text-sm font-bold text-indigo-400 hover:text-indigo-300">Expand All</Button>
-            </div>
-            <div className="space-y-4">
-              <AnimatePresence>
-                {backlog.map((task, i) => (
-                  <motion.div
-                    key={task.id}
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: 20 }}
-                    transition={{ delay: i * 0.05 }}
-                    className="group bg-white/[0.03] border border-white/5 p-6 rounded-[28px] flex items-center gap-8 hover:bg-white/[0.06] hover:border-white/10 transition-all cursor-pointer shadow-xl"
+        {/* Success Card view */}
+        <AnimatePresence>
+          {successTask && (
+            <motion.div
+              initial={{ opacity: 0, y: 20, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 20, scale: 0.95 }}
+            >
+              <Card className="bg-green-500/5 border border-green-500/20 rounded-[32px] overflow-hidden p-8 shadow-2xl text-left relative">
+                <div className="absolute top-0 left-0 w-full h-1 bg-green-500" />
+                <div className="flex justify-between items-start mb-6">
+                  <div className="flex gap-2">
+                    <Badge className="bg-green-500/10 text-green-400 border-green-500/20 px-3 py-1 text-xs font-bold uppercase tracking-wider">
+                      Synced to Calendar
+                    </Badge>
+                    {successTask.urgency && (
+                      <Badge className={`${
+                        successTask.urgency === 'Urgent' ? 'bg-red-500/20 text-red-400 border-red-500/30' : 
+                        successTask.urgency === 'High' ? 'bg-amber-500/20 text-amber-400 border-amber-500/30' : 
+                        'bg-indigo-500/20 text-indigo-400 border-indigo-500/30'
+                      } px-3 py-1 text-xs font-bold uppercase tracking-wider`}>
+                        {successTask.urgency} Urgency
+                      </Badge>
+                    )}
+                  </div>
+                  <Button 
+                    onClick={() => handleDeleteTask(successTask.id)} 
+                    variant="ghost" 
+                    size="sm" 
+                    className="text-slate-500 hover:text-red-400 h-8 px-2 rounded-lg"
+                    title="Delete event and task"
                   >
-                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform ${
-                      task.status === 'AI_Do' ? 'bg-purple-500/20 text-purple-400' : 'bg-white/5 text-indigo-400'
-                    }`}>
-                      {task.status === 'AI_Do' ? <Sparkles className="w-7 h-7" /> : <Target className="w-7 h-7" />}
-                    </div>
-                    <div className="flex-1">
-                      <p className="font-bold text-2xl leading-tight tracking-tight mb-1">{task.title}</p>
-                      <div className="flex items-center gap-4">
-                        <span className="text-sm font-black text-slate-500 uppercase tracking-widest">{task.client || 'General'}</span>
-                        <div className="w-1.5 h-1.5 rounded-full bg-white/10" />
-                        <span className="text-sm font-bold text-indigo-500/60 uppercase">{task.est_minutes} min</span>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-6">
-                      {task.status === 'AI_Do' && (
-                        <>
-                          <Badge className="bg-purple-600/20 text-purple-400 border-purple-500/20 px-4 py-1 font-black uppercase text-[10px] tracking-widest">Autonomous</Badge>
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            onClick={(e) => { e.stopPropagation(); executeAiDo(task.id); }}
-                            className="hover:bg-purple-500/20 hover:text-purple-400 rounded-full w-12 h-12"
-                          >
-                            <Sparkles className="w-7 h-7" />
-                          </Button>
-                        </>
-                      )}
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        onClick={(e) => { e.stopPropagation(); markDone(task.id); }}
-                        className="opacity-0 group-hover:opacity-100 transition-opacity hover:bg-green-500/20 hover:text-green-400 rounded-full w-12 h-12"
-                      >
-                        <CheckCircle2 className="w-7 h-7" />
-                      </Button>
-                      <ChevronRight className="w-6 h-6 text-slate-700" />
-                    </div>
-
-                  </motion.div>
-                ))}
-              </AnimatePresence>
-              {backlog.length === 0 && !isLoading && (
-                <p className="text-center py-10 text-slate-600 font-bold uppercase tracking-widest text-xs">Backlog Empty</p>
-              )}
-            </div>
-          </section>
-        </div>
-
-        {/* Right Column: Daily Brief & Schedule Visualization */}
-        <div className="space-y-16">
-          <Card className="bg-white/5 border-white/10 rounded-[40px] overflow-hidden shadow-2xl relative">
-            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-indigo-500 to-purple-600" />
-            <CardHeader className="p-10 border-b border-white/5">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-indigo-500/10 rounded-lg">
-                  <Sparkles className="w-5 h-5 text-indigo-400" />
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
                 </div>
-                <CardTitle className="text-sm font-black uppercase tracking-[0.2em] text-slate-500">AI Intelligence</CardTitle>
-              </div>
-            </CardHeader>
-            <CardContent className="p-10 space-y-8">
-              <p className="text-2xl leading-snug italic text-slate-300 font-medium tracking-tight">
-                "Josh, your morning is prioritized for TAGtargets strategy. I've cleared the noise so you can focus. Your AI reports will be delivered by 5 PM."
-              </p>
-              <div className="space-y-4 pt-8 border-t border-white/5">
-                <p className="text-xs font-black uppercase tracking-widest text-slate-600">Day Metrics</p>
-                <ul className="space-y-4">
-                  <WinItem text={`${tasks.length} optimized actions`} />
-                  <WinItem text="4 hours reclaimed by AI" />
-                </ul>
-              </div>
-            </CardContent>
-          </Card>
 
-          <Card className="bg-[#0f0f2d]/50 border-white/5 rounded-[40px] overflow-hidden shadow-2xl">
-            <CardHeader className="p-10 border-b border-white/5 flex flex-row items-center justify-between">
-              <CardTitle className="text-sm font-black uppercase tracking-[0.2em] text-slate-500">Timeline</CardTitle>
-              <div className="p-2 bg-white/5 rounded-lg">
-                <Calendar className="w-5 h-5 text-slate-500" />
+                <h3 className="text-2xl font-black text-white mb-4 leading-snug">
+                  {successTask.title}
+                </h3>
+
+                {successTask.scheduled_start && (
+                  <div className="flex items-center gap-2 text-indigo-400 mb-6 bg-white/5 w-fit px-4 py-2 rounded-xl border border-white/5">
+                    <Clock className="w-4 h-4" />
+                    <span className="font-bold text-sm">
+                      {new Date(successTask.scheduled_start).toLocaleString(undefined, { 
+                        weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' 
+                      })}
+                      {successTask.scheduled_end && ` - ${new Date(successTask.scheduled_end).toLocaleString(undefined, { hour: 'numeric', minute: '2-digit' })}`}
+                    </span>
+                  </div>
+                )}
+
+                <div className="border-t border-white/5 pt-4 space-y-2">
+                  <button 
+                    onClick={() => setShowAiInsights(!showAiInsights)}
+                    className="text-xs font-black uppercase tracking-widest text-slate-500 hover:text-white flex items-center gap-1"
+                  >
+                    AI Custom Enhancements {showAiInsights ? '▲' : '▼'}
+                  </button>
+                  
+                  {showAiInsights && (
+                    <motion.div 
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      className="text-sm text-slate-400 leading-relaxed font-medium bg-black/25 p-4 rounded-xl border border-white/5 space-y-2"
+                    >
+                      {successTask.notes && (
+                        <div>
+                          <span className="text-xs font-bold text-slate-600 block">AI Tweak Notes:</span>
+                          <span className="whitespace-pre-wrap">{successTask.notes}</span>
+                        </div>
+                      )}
+                      <div className="grid grid-cols-2 gap-4 pt-2 border-t border-white/5">
+                        <div>
+                          <span className="text-xs font-bold text-slate-600 block">Workstream:</span>
+                          <span className="text-xs font-bold text-slate-300">{successTask.workstream || 'General'}</span>
+                        </div>
+                        <div>
+                          <span className="text-xs font-bold text-slate-600 block">Client Context:</span>
+                          <span className="text-xs font-bold text-slate-300">{successTask.client || 'None'}</span>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+                </div>
+              </Card>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </section>
+
+      {/* Recent Feed Action history */}
+      <section className="max-w-xl mx-auto space-y-4">
+        <h2 className="text-xs font-black uppercase tracking-[0.2em] text-slate-500">Recent Sync History</h2>
+        
+        <div className="space-y-3">
+          {isLoadingFeed ? (
+            <div className="py-6 text-center text-slate-600">
+              <Loader2 className="w-5 h-5 animate-spin mx-auto" />
+            </div>
+          ) : recentTasks.length > 0 ? (
+            recentTasks.map((task) => (
+              <div 
+                key={task.id}
+                className="bg-white/[0.02] border border-white/5 p-5 rounded-2xl flex items-center justify-between hover:bg-white/[0.04] transition-all group"
+              >
+                <div className="space-y-1 overflow-hidden pr-4">
+                  <p className="font-bold text-base text-slate-200 truncate">{task.title}</p>
+                  <div className="flex items-center gap-3 text-xs text-slate-500 font-medium">
+                    {task.scheduled_start ? (
+                      <span className="text-indigo-400 font-semibold flex items-center gap-1">
+                        <Calendar className="w-3 h-3" />
+                        {new Date(task.scheduled_start).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                        {' @ '}
+                        {new Date(task.scheduled_start).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}
+                      </span>
+                    ) : (
+                      <span>Backlog</span>
+                    )}
+                    <span>•</span>
+                    <span>{task.est_minutes} min</span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  {task.calendar_event_id && (
+                    <Badge className="bg-indigo-500/10 text-indigo-400 border-none text-[10px] font-bold px-2 py-0.5 rounded">
+                      Synced
+                    </Badge>
+                  )}
+                  <Button 
+                    onClick={() => handleDeleteTask(task.id)}
+                    variant="ghost" 
+                    size="icon" 
+                    className="opacity-0 group-hover:opacity-100 hover:bg-red-500/10 hover:text-red-400 rounded-full w-9 h-9 transition-opacity"
+                    title="Delete scheduled event"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </div>
               </div>
-            </CardHeader>
-            <CardContent className="p-0">
-              <div className="p-10 space-y-6">
-                <TimeBlock time="09:00" label="Executive Flow" type="locked" />
-                <TimeBlock time="11:30" label="AI: TAGtargets Strategy" type="ai" active />
-                <TimeBlock time="13:30" label="Lunch Break" type="locked" />
-                <TimeBlock time="15:00" label="AI: Output Review" type="ai" />
-              </div>
-            </CardContent>
-          </Card>
+            ))
+          ) : (
+            <div className="py-8 text-center border border-dashed border-white/5 rounded-2xl text-slate-600 font-medium text-sm">
+              No recent syncs recorded.
+            </div>
+          )}
         </div>
-      </div>
-    </>
-  );
-}
+      </section>
 
-function WinItem({ text }: { text: string }) {
-  return (
-    <li className="flex items-center gap-4 group">
-      <div className="w-6 h-6 rounded-lg bg-green-500/10 flex items-center justify-center border border-green-500/20 group-hover:bg-green-500/20 transition-colors">
-        <div className="w-2 h-2 rounded-full bg-green-500" />
-      </div>
-      <span className="text-base font-bold text-slate-400 group-hover:text-slate-200 transition-colors tracking-tight">{text}</span>
-    </li>
-  );
-}
+      {/* Connection Modal */}
+      <AnimatePresence>
+        {showSyncModal && (
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-6">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowSyncModal(false)}
+              className="absolute inset-0 bg-black/85 backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative w-full max-w-lg bg-[#14142a] border border-white/10 rounded-[32px] p-8 shadow-2xl overflow-hidden"
+            >
+              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-indigo-500 to-purple-600" />
+              
+              <div className="flex justify-between items-start mb-6">
+                <div>
+                  <h2 className="text-2xl font-black tracking-tight mb-1 text-white">Google Calendar Sync</h2>
+                  <p className="text-sm text-slate-400 font-medium">Link your calendar to schedule events autonomously.</p>
+                </div>
+                <Button variant="ghost" size="icon" onClick={() => setShowSyncModal(false)} className="rounded-full hover:bg-white/5 text-slate-500">
+                  <X className="w-5 h-5" />
+                </Button>
+              </div>
 
-function TimeBlock({ time, label, type, active = false }: { time: string, label: string, type: 'locked' | 'ai', active?: boolean }) {
-  return (
-    <div className={`flex gap-6 group ${active ? 'scale-105 origin-left transition-transform' : ''}`}>
-      <span className="text-sm font-black font-mono text-slate-600 pt-1.5 uppercase tracking-tighter w-12">{time}</span>
-      <div className={`flex-1 p-5 rounded-[22px] border transition-all shadow-lg ${
-        active 
-          ? 'bg-indigo-500/20 border-indigo-500/40 ring-1 ring-indigo-500/20' 
-          : type === 'ai' 
-            ? 'bg-purple-500/5 border-purple-500/10 text-slate-300' 
-            : 'bg-white/5 border-white/5 text-slate-500'
-      }`}>
-        <p className="text-base font-black tracking-tight uppercase">{label}</p>
-      </div>
+              <div className="space-y-6">
+                <div className="p-5 bg-white/5 border border-white/5 rounded-2xl space-y-3">
+                  <p className="text-xs font-black uppercase tracking-widest text-indigo-400">Step 1: Share Calendar</p>
+                  <p className="text-slate-300 text-xs leading-relaxed font-medium">
+                    Share your Google Calendar settings with our AI Service Email. Give it permissions to <span className="text-white font-bold">"Make changes to events"</span>.
+                  </p>
+                  <div className="flex items-center gap-2 bg-black/30 p-3 rounded-xl border border-white/5">
+                    <code className="text-[11px] text-slate-400 flex-1 truncate select-all">autopilot-sync@autopilot-app-496415.iam.gserviceaccount.com</code>
+                    <button 
+                      onClick={() => {
+                        navigator.clipboard.writeText('autopilot-sync@autopilot-app-496415.iam.gserviceaccount.com');
+                        toast.success('Email copied');
+                      }}
+                      className="p-2 hover:bg-white/10 rounded-lg text-slate-500 transition-colors"
+                    >
+                      <Copy className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <p className="text-xs font-black uppercase tracking-widest text-indigo-400">Step 2: Save Calendar ID</p>
+                  <div className="space-y-1">
+                    <label className="text-[9px] font-black uppercase tracking-widest text-slate-500 ml-3">Google Calendar ID</label>
+                    <input 
+                      value={calendarId}
+                      onChange={(e) => setCalendarId(e.target.value)}
+                      placeholder="e.g. yourname@gmail.com"
+                      className="w-full h-12 bg-white/5 border border-white/10 rounded-xl px-4 text-white text-base font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
+                    />
+                    <p className="text-[9px] text-slate-600 ml-3 italic">Usually your Google account email address.</p>
+                  </div>
+                </div>
+
+                <div className="pt-2 flex gap-3">
+                  <Button 
+                    onClick={handleSaveCalendarSync}
+                    disabled={!calendarId}
+                    className="flex-1 h-14 bg-white text-indigo-600 hover:bg-indigo-50 rounded-xl font-bold text-base shadow-xl"
+                  >
+                    Confirm Sync Connection
+                  </Button>
+                  <Button 
+                    variant="outline"
+                    onClick={() => window.open('https://calendar.google.com/calendar/u/0/r/settings', '_blank')}
+                    className="h-14 px-5 border-white/10 text-slate-400 hover:bg-white/5 rounded-xl"
+                  >
+                    <ExternalLink className="w-5 h-5" />
+                  </Button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

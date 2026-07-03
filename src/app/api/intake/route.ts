@@ -4,6 +4,7 @@ import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { parseTaskWithAI, getExecutionPlan } from '@/lib/ai';
 import { getSupabaseConfig } from '@/lib/supabase-config';
+import { pushToGoogleCalendar, findAvailableSlot } from '@/lib/calendar';
 
 export async function POST(req: Request) {
   try {
@@ -43,7 +44,7 @@ export async function POST(req: Request) {
     // 0. Fetch Profile & Style Guide for context
     const { data: profile } = await supabaseAdmin
       .from('profiles')
-      .select('plan_type, credits')
+      .select('plan_type, credits, google_calendar_id, timezone, settings')
       .eq('id', userId)
       .single();
 
@@ -65,6 +66,52 @@ export async function POST(req: Request) {
       styleContext,
       profile.plan_type
     );
+
+    // 1.1 Resolve Space & Project IDs
+    let spaceId = null;
+    let projectId = null;
+
+    if (parsedTask.space_name) {
+      // Find or Create Space
+      const { data: spaceData } = await supabaseAdmin
+        .from('spaces')
+        .select('id')
+        .ilike('name', parsedTask.space_name)
+        .eq('user_id', userId)
+        .maybeSingle();
+      
+      if (spaceData) {
+        spaceId = spaceData.id;
+      } else {
+        const { data: newSpace } = await supabaseAdmin
+          .from('spaces')
+          .insert([{ name: parsedTask.space_name, user_id: userId }])
+          .select()
+          .single();
+        if (newSpace) spaceId = newSpace.id;
+      }
+
+      if (spaceId && parsedTask.project_name) {
+        // Find or Create Project within Space
+        const { data: projData } = await supabaseAdmin
+          .from('projects')
+          .select('id')
+          .ilike('name', parsedTask.project_name)
+          .eq('space_id', spaceId)
+          .maybeSingle();
+        
+        if (projData) {
+          projectId = projData.id;
+        } else {
+          const { data: newProj } = await supabaseAdmin
+            .from('projects')
+            .insert([{ name: parsedTask.project_name, space_id: spaceId, user_id: userId }])
+            .select()
+            .single();
+          if (newProj) projectId = newProj.id;
+        }
+      }
+    }
 
     // 2. Multi-image handling (Real Storage Upload)
     const uploadedImages: string[] = [];
@@ -104,8 +151,11 @@ export async function POST(req: Request) {
             title: parsedTask.title,
             urgency: parsedTask.urgency,
             est_minutes: parsedTask.est_minutes,
-            client: parsedTask.client,
-            workstream: parsedTask.workstream,
+            space_id: spaceId,
+            project_id: projectId,
+            assignee_label: parsedTask.assignee_label,
+            scheduled_start: parsedTask.scheduled_start,
+            scheduled_end: parsedTask.scheduled_end,
             notes: parsedTask.notes + `\n\nPENDING QUESTION: ${plan.questions[0]}`,
             status: 'Needs-info',
             user_id: userId
@@ -127,6 +177,48 @@ export async function POST(req: Request) {
       }
     }
 
+    // 3.1 Automatically schedule task if no time is specified and calendar is linked
+    let scheduledStart = parsedTask.scheduled_start;
+    let scheduledEnd = parsedTask.scheduled_end;
+    let finalStatus = parsedTask.status;
+
+    if (!scheduledStart && parsedTask.status !== 'AI_Do' && profile.google_calendar_id) {
+      const slot = await findAvailableSlot(
+        profile.google_calendar_id,
+        parsedTask.est_minutes || 30,
+        parsedTask.urgency || 'Low',
+        profile.timezone || 'America/New_York',
+        {
+          primary_window: profile.settings?.primary_window || '09:00-17:00',
+          overflow_window: profile.settings?.overflow_window || '20:00-22:00',
+          work_weekends: profile.settings?.work_weekends || false
+        }
+      );
+      scheduledStart = slot.start.toISOString();
+      scheduledEnd = slot.end.toISOString();
+      finalStatus = 'Scheduled';
+    } else if (scheduledStart) {
+      finalStatus = 'Scheduled';
+    }
+
+    // 3.2 Sync directly with Google Calendar
+    let calendarEventId = null;
+    let calendarSynced = false;
+
+    if (scheduledStart && profile.google_calendar_id) {
+      const calendarSync = await pushToGoogleCalendar(
+        profile.google_calendar_id,
+        parsedTask.title,
+        parsedTask.notes || '',
+        scheduledStart,
+        scheduledEnd
+      );
+      if (calendarSync.success && calendarSync.eventId) {
+        calendarEventId = calendarSync.eventId;
+        calendarSynced = true;
+      }
+    }
+
     // 4. Save to Supabase (Now using real userId and Admin client)
     const { data: task, error: taskError } = await supabaseAdmin
       .from('tasks')
@@ -135,11 +227,15 @@ export async function POST(req: Request) {
           title: parsedTask.title,
           urgency: parsedTask.urgency,
           est_minutes: parsedTask.est_minutes,
-          client: parsedTask.client,
-          workstream: parsedTask.workstream,
+          space_id: spaceId,
+          project_id: projectId,
+          assignee_label: parsedTask.assignee_label,
+          scheduled_start: scheduledStart,
+          scheduled_end: scheduledEnd,
           notes: parsedTask.notes,
-          status: parsedTask.status,
-          user_id: userId
+          status: finalStatus,
+          user_id: userId,
+          calendar_event_id: calendarEventId
         }
       ])
       .select()
@@ -160,7 +256,8 @@ export async function POST(req: Request) {
     return NextResponse.json({
       success: true,
       message: `Task captured: ${parsedTask.title}`,
-      task: task
+      task: task,
+      calendar_synced: calendarSynced
     });
 
   } catch (err: any) {

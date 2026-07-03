@@ -10,6 +10,7 @@ export async function parseTaskWithAI(input: string, context?: string, plan: str
   const prompt = `
     You are an elite Chief of Staff. Extract task fields from the input.
     Context: ${context || 'General task management'}
+    Reference Time (Current): ${new Date().toISOString()}
     
     Input: ${input}
 
@@ -18,8 +19,11 @@ export async function parseTaskWithAI(input: string, context?: string, plan: str
       "title": "Clean, actionable title",
       "urgency": "Urgent|High|Low",
       "est_minutes": number,
-      "client": "Name or null",
-      "workstream": "Name or null",
+      "space_name": "Name of the workspace/client (e.g. TAG Targets, RaketRank, Personal)",
+      "project_name": "Specific project name if mentioned",
+      "assignee_label": "Name of person assigned (e.g. Syed, Theo) or null",
+      "scheduled_start": "ISO8601 string if a specific time is mentioned, otherwise null",
+      "scheduled_end": "ISO8601 string if duration is known, otherwise null",
       "notes": "Extra context",
       "status": "Ready|AI_Do"
     }
