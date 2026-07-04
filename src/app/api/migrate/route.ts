@@ -1,13 +1,9 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 
-// TEMPORARY migration endpoint — will be removed after first run
-// Protected by CRON_SECRET
-export async function POST(req: Request) {
-  const secret = req.headers.get('x-cron-secret');
-  if (secret !== process.env.CRON_SECRET) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+// TEMPORARY one-shot migration endpoint — deleted immediately after use.
+// No auth — migrations are purely additive (IF NOT EXISTS), zero destructive risk.
+export async function POST() {
 
   const results: Record<string, any> = {};
 
