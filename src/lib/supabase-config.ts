@@ -12,6 +12,11 @@ export function getSupabaseConfig() {
   anonKey = anonKey.replace(/^["']|["']$/g, '');
   serviceKey = serviceKey.replace(/^["']|["']$/g, '');
 
+  if (serviceKey === 'placeholder_until_provided') {
+    serviceKey = '';
+    console.error('CRITICAL: SUPABASE_SERVICE_ROLE_KEY is still a placeholder. Admin operations will fail.');
+  }
+
   // Remove common malformed suffixes like /rest/v1 or trailing slashes
   url = url.replace(/\/rest\/v1\/?$/, '');
   url = url.replace(/\/$/, '');

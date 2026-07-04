@@ -3,10 +3,11 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { getSupabaseConfig } from './lib/supabase-config'
 
 /**
- * Next.js 16 Proxy (formerly Middleware)
+ * Next.js 16 Proxy (replaces Middleware)
  * Handles session validation and cookie synchronization.
+ * See: https://nextjs.org/docs/messages/middleware-to-proxy
  */
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   let response = NextResponse.next({
     request: {
       headers: request.headers,
@@ -55,7 +56,7 @@ export async function middleware(request: NextRequest) {
   return response
 }
 
-// Support both 'middleware.ts' and Future 'proxy.ts' naming conventions
+// Support both 'middleware.ts' and 'proxy.ts' naming conventions
 export const config = {
   matcher: ['/dashboard/:path*', '/auth'],
 }

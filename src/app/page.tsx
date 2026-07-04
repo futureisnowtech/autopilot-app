@@ -79,9 +79,9 @@ export default function LandingPage() {
             © 2026 Autopilot AI. Built for the future.
           </div>
           <div className="flex gap-8 text-slate-400 text-sm">
-            <Link href="#" className="hover:text-white transition-colors">Privacy</Link>
-            <Link href="#" className="hover:text-white transition-colors">Terms</Link>
-            <Link href="#" className="hover:text-white transition-colors">Support</Link>
+            <Link href="/privacy" className="hover:text-white transition-colors">Privacy</Link>
+            <Link href="/terms" className="hover:text-white transition-colors">Terms</Link>
+            <Link href="/support" className="hover:text-white transition-colors">Support</Link>
           </div>
         </div>
       </footer>

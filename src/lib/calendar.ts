@@ -12,6 +12,10 @@ export async function pushToGoogleCalendar(
   endIso?: string
 ) {
   try {
+    if (!process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || !process.env.GOOGLE_PRIVATE_KEY) {
+      console.warn('Google Calendar credentials not configured. Skipping calendar sync.');
+      return { success: false, error: 'Calendar credentials not configured' };
+    }
     const auth = new google.auth.GoogleAuth({
       credentials: {
         client_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
@@ -134,6 +138,9 @@ export async function findAvailableSlot(
   }
 ): Promise<{ start: Date; end: Date }> {
   try {
+    if (!process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || !process.env.GOOGLE_PRIVATE_KEY) {
+      throw new Error('Calendar credentials not configured');
+    }
     const auth = new google.auth.GoogleAuth({
       credentials: {
         client_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
@@ -143,6 +150,7 @@ export async function findAvailableSlot(
     });
 
     const calendar = google.calendar({ version: 'v3', auth });
+
     
     const now = new Date();
     const timeMin = now.toISOString();

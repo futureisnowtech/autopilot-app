@@ -28,6 +28,7 @@ import { Button } from '@/components/ui/button';
 import { supabase } from '@/lib/supabase';
 import { Task } from '@/types/database';
 import { toast } from "sonner";
+import CalendarSyncModal, { CalendarProvider } from '@/components/calendar-sync-modal';
 
 export default function Dashboard() {
   const [userName, setUserName] = useState<string>('Founder');
@@ -37,6 +38,8 @@ export default function Dashboard() {
   const [calendarId, setCalendarId] = useState('');
   const [isSynced, setIsSynced] = useState(false);
   const [showSyncModal, setShowSyncModal] = useState(false);
+  const [calendarProvider, setCalendarProvider] = useState<CalendarProvider>('google');
+  const [isSaving, setIsSaving] = useState(false);
 
   // Intake UI states
   const [inputType, setInputType] = useState<'voice' | 'text'>('voice');
@@ -100,7 +103,7 @@ export default function Dashboard() {
         // Fetch profile
         const { data: profile } = await supabase
           .from('profiles')
-          .select('credits, plan_type, google_calendar_id, onboarding_completed')
+          .select('credits, plan_type, google_calendar_id, calendar_provider, onboarding_completed')
           .eq('id', session.user.id)
           .single();
 
@@ -113,6 +116,15 @@ export default function Dashboard() {
           setPlanType(profile.plan_type);
           if (profile.google_calendar_id) {
             setCalendarId(profile.google_calendar_id);
+            setIsSynced(true);
+          }
+          if (profile.calendar_provider) {
+            setCalendarProvider(profile.calendar_provider as CalendarProvider);
+          } else if (profile.google_calendar_id) {
+            setCalendarProvider('google');
+          }
+          // For Apple/Outlook: if calendar_provider is set but no google_calendar_id, still mark as synced
+          if (!profile.google_calendar_id && profile.calendar_provider && profile.calendar_provider !== 'google') {
             setIsSynced(true);
           }
         }
@@ -175,7 +187,7 @@ export default function Dashboard() {
     try {
       // Step messages to make it feel responsive and magical
       setTimeout(() => setStatusMessage('Analyzing schedule gaps...'), 1000);
-      setTimeout(() => setStatusMessage('Syncing to Google Calendar...'), 2000);
+      setTimeout(() => setStatusMessage(isSynced ? 'Pushing to your calendar...' : 'Saving to backlog...'), 2000);
 
       const response = await fetch('/api/intake', {
         method: 'POST',
@@ -232,21 +244,35 @@ export default function Dashboard() {
     );
   };
 
-  const handleSaveCalendarSync = async () => {
-    if (!userId || !calendarId) return;
+  const handleSaveCalendarSync = async (provider: CalendarProvider) => {
+    if (provider === 'google' && (!userId || !calendarId)) return;
+    if (!userId) return;
+    setIsSaving(true);
     
+    const updatePayload: Record<string, string> = {
+      calendar_provider: provider,
+    };
+    if (provider === 'google') {
+      updatePayload.google_calendar_id = calendarId;
+    }
+
     const { error } = await supabase
       .from('profiles')
-      .update({ google_calendar_id: calendarId })
+      .update(updatePayload)
       .eq('id', userId);
 
+    setIsSaving(false);
     if (error) {
-      toast.error('Failed to save calendar ID');
+      toast.error('Failed to save calendar settings');
     } else {
       setIsSynced(true);
+      setCalendarProvider(provider);
       setShowSyncModal(false);
-      toast.success('Google Calendar Connected', {
-        description: 'Autopilot will now auto-schedule and sync events.'
+      const providerName = provider === 'google' ? 'Google Calendar' : provider === 'apple' ? 'Apple Calendar' : 'Outlook Calendar';
+      toast.success(`${providerName} Connected`, {
+        description: provider === 'google'
+          ? 'Autopilot will now auto-schedule and sync events.'
+          : 'Subscribe using the iCal feed URL in your calendar app to see tasks.'
       });
     }
   };
@@ -447,8 +473,12 @@ export default function Dashboard() {
                 <div className="absolute top-0 left-0 w-full h-1 bg-green-500" />
                 <div className="flex justify-between items-start mb-6">
                   <div className="flex gap-2">
-                    <Badge className="bg-green-500/10 text-green-400 border-green-500/20 px-3 py-1 text-xs font-bold uppercase tracking-wider">
-                      Synced to Calendar
+                    <Badge className={`px-3 py-1 text-xs font-bold uppercase tracking-wider ${
+                      successTask.calendar_event_id 
+                        ? 'bg-green-500/10 text-green-400 border-green-500/20' 
+                        : 'bg-slate-500/10 text-slate-400 border-slate-500/20'
+                    }`}>
+                      {successTask.calendar_event_id ? 'Synced to Calendar' : 'Saved to Backlog'}
                     </Badge>
                     {successTask.urgency && (
                       <Badge className={`${
@@ -588,85 +618,14 @@ export default function Dashboard() {
       {/* Connection Modal */}
       <AnimatePresence>
         {showSyncModal && (
-          <div className="fixed inset-0 z-[110] flex items-center justify-center p-6">
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setShowSyncModal(false)}
-              className="absolute inset-0 bg-black/85 backdrop-blur-sm"
-            />
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative w-full max-w-lg bg-[#14142a] border border-white/10 rounded-[32px] p-8 shadow-2xl overflow-hidden"
-            >
-              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-indigo-500 to-purple-600" />
-              
-              <div className="flex justify-between items-start mb-6">
-                <div>
-                  <h2 className="text-2xl font-black tracking-tight mb-1 text-white">Google Calendar Sync</h2>
-                  <p className="text-sm text-slate-400 font-medium">Link your calendar to schedule events autonomously.</p>
-                </div>
-                <Button variant="ghost" size="icon" onClick={() => setShowSyncModal(false)} className="rounded-full hover:bg-white/5 text-slate-500">
-                  <X className="w-5 h-5" />
-                </Button>
-              </div>
-
-              <div className="space-y-6">
-                <div className="p-5 bg-white/5 border border-white/5 rounded-2xl space-y-3">
-                  <p className="text-xs font-black uppercase tracking-widest text-indigo-400">Step 1: Share Calendar</p>
-                  <p className="text-slate-300 text-xs leading-relaxed font-medium">
-                    Share your Google Calendar settings with our AI Service Email. Give it permissions to <span className="text-white font-bold">"Make changes to events"</span>.
-                  </p>
-                  <div className="flex items-center gap-2 bg-black/30 p-3 rounded-xl border border-white/5">
-                    <code className="text-[11px] text-slate-400 flex-1 truncate select-all">autopilot-sync@autopilot-app-496415.iam.gserviceaccount.com</code>
-                    <button 
-                      onClick={() => {
-                        navigator.clipboard.writeText('autopilot-sync@autopilot-app-496415.iam.gserviceaccount.com');
-                        toast.success('Email copied');
-                      }}
-                      className="p-2 hover:bg-white/10 rounded-lg text-slate-500 transition-colors"
-                    >
-                      <Copy className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </div>
-
-                <div className="space-y-3">
-                  <p className="text-xs font-black uppercase tracking-widest text-indigo-400">Step 2: Save Calendar ID</p>
-                  <div className="space-y-1">
-                    <label className="text-[9px] font-black uppercase tracking-widest text-slate-500 ml-3">Google Calendar ID</label>
-                    <input 
-                      value={calendarId}
-                      onChange={(e) => setCalendarId(e.target.value)}
-                      placeholder="e.g. yourname@gmail.com"
-                      className="w-full h-12 bg-white/5 border border-white/10 rounded-xl px-4 text-white text-base font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
-                    />
-                    <p className="text-[9px] text-slate-600 ml-3 italic">Usually your Google account email address.</p>
-                  </div>
-                </div>
-
-                <div className="pt-2 flex gap-3">
-                  <Button 
-                    onClick={handleSaveCalendarSync}
-                    disabled={!calendarId}
-                    className="flex-1 h-14 bg-white text-indigo-600 hover:bg-indigo-50 rounded-xl font-bold text-base shadow-xl"
-                  >
-                    Confirm Sync Connection
-                  </Button>
-                  <Button 
-                    variant="outline"
-                    onClick={() => window.open('https://calendar.google.com/calendar/u/0/r/settings', '_blank')}
-                    className="h-14 px-5 border-white/10 text-slate-400 hover:bg-white/5 rounded-xl"
-                  >
-                    <ExternalLink className="w-5 h-5" />
-                  </Button>
-                </div>
-              </div>
-            </motion.div>
-          </div>
+          <CalendarSyncModal
+            calendarId={calendarId}
+            setCalendarId={setCalendarId}
+            icalFeedUrl={userId ? `${window.location.origin}/api/calendar/${userId}` : '...'}
+            onSave={handleSaveCalendarSync}
+            onClose={() => setShowSyncModal(false)}
+            isSaving={isSaving}
+          />
         )}
       </AnimatePresence>
     </div>
