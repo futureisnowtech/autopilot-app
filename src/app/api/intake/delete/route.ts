@@ -52,13 +52,17 @@ export async function POST(req: Request) {
     // 2. Fetch user profile for Google Calendar ID
     const { data: profile } = await supabaseAdmin
       .from('profiles')
-      .select('google_calendar_id')
+      .select('google_calendar_id, google_refresh_token')
       .eq('id', session.user.id)
       .single();
 
     // 3. Delete from Google Calendar if event exists
-    if (task.calendar_event_id && profile?.google_calendar_id) {
-      await deleteFromGoogleCalendar(profile.google_calendar_id, task.calendar_event_id);
+    if (task.calendar_event_id && (profile?.google_calendar_id || profile?.google_refresh_token)) {
+      await deleteFromGoogleCalendar(
+        profile.google_calendar_id || 'primary', 
+        task.calendar_event_id, 
+        profile.google_refresh_token
+      );
     }
 
     // 4. Delete from Supabase

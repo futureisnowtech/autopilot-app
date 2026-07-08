@@ -2,10 +2,12 @@ import { createServerClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 import { getSupabaseConfig } from '@/lib/supabase-config';
+import { supabaseAdmin } from '@/lib/supabase-admin';
 
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url);
   const code = requestUrl.searchParams.get('code');
+  const provider = requestUrl.searchParams.get('provider');
 
   if (code) {
     const { url, anonKey } = getSupabaseConfig();
@@ -30,7 +32,21 @@ export async function GET(request: Request) {
     );
     
     // Exchange the code for a real session (sets the cookies)
-    await supabase.auth.exchangeCodeForSession(code);
+    const { data } = await supabase.auth.exchangeCodeForSession(code);
+
+    if (data?.session && (data.session.provider_refresh_token || provider === 'google')) {
+      const refreshToken = data.session.provider_refresh_token;
+      if (refreshToken) {
+        await supabaseAdmin
+          .from('profiles')
+          .update({
+            google_refresh_token: refreshToken,
+            calendar_provider: 'google',
+            google_calendar_id: 'primary'
+          })
+          .eq('id', data.session.user.id);
+      }
+    }
   }
 
   // URL to redirect to after sign in process completes

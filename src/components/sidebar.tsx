@@ -26,7 +26,6 @@ export default function Sidebar() {
   const [userId, setUserId] = useState<string | null>(null);
   const [isSynced, setIsSynced] = useState(false);
   const [showSyncModal, setShowSyncModal] = useState(false);
-  const [calendarId, setCalendarId] = useState('');
   const [calendarProvider, setCalendarProvider] = useState<CalendarProvider>('google');
   const [isSaving, setIsSaving] = useState(false);
   const [spaces, setSpaces] = useState<Space[]>([]);
@@ -44,14 +43,12 @@ export default function Sidebar() {
           .select('google_calendar_id, calendar_provider')
           .eq('id', session.user.id)
           .single();
-        if (profile?.google_calendar_id) {
-          setIsSynced(true);
-          setCalendarId(profile.google_calendar_id);
-        }
         if (profile?.calendar_provider) {
           setCalendarProvider(profile.calendar_provider as CalendarProvider);
+          setIsSynced(true);
         } else if (profile?.google_calendar_id) {
           setCalendarProvider('google');
+          setIsSynced(true);
         }
 
         // Fetch spaces
@@ -95,21 +92,12 @@ export default function Sidebar() {
   };
 
   const handleSaveSync = async (provider: CalendarProvider) => {
-    // For Apple/Outlook (iCal feed), calendarId is not required
-    if (provider === 'google' && (!userId || !calendarId)) return;
     if (!userId) return;
     setIsSaving(true);
-    
-    const updatePayload: Record<string, string> = {
-      calendar_provider: provider,
-    };
-    if (provider === 'google') {
-      updatePayload.google_calendar_id = calendarId;
-    }
 
     const { error } = await supabase
       .from('profiles')
-      .update(updatePayload)
+      .update({ calendar_provider: provider })
       .eq('id', userId);
 
     setIsSaving(false);
@@ -121,9 +109,7 @@ export default function Sidebar() {
       setShowSyncModal(false);
       const providerName = provider === 'google' ? 'Google Calendar' : provider === 'apple' ? 'Apple Calendar' : 'Outlook Calendar';
       toast.success(`${providerName} Connected`, {
-        description: provider === 'google'
-          ? 'Autopilot will now push events directly to your calendar.'
-          : 'Your tasks will appear in your calendar via live feed subscription.'
+        description: 'Your tasks will appear in your calendar via live feed subscription.'
       });
     }
   };
@@ -239,8 +225,6 @@ export default function Sidebar() {
       <AnimatePresence>
         {showSyncModal && (
           <CalendarSyncModal
-            calendarId={calendarId}
-            setCalendarId={setCalendarId}
             icalFeedUrl={userId ? `${typeof window !== 'undefined' ? window.location.origin : ''}/api/calendar/${userId}` : '...'}
             onSave={handleSaveSync}
             onClose={() => setShowSyncModal(false)}

@@ -31,6 +31,12 @@ export const metadata: Metadata = {
     title: "Autopilot — AI Operating System",
     description: "The elite AI assistant that runs your schedule autonomously.",
   },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'black-translucent',
+    title: 'Autopilot',
+  },
+  manifest: '/manifest.json',
 };
 
 export default function RootLayout({

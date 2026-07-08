@@ -35,7 +35,6 @@ export default function Dashboard() {
   const [userId, setUserId] = useState<string | null>(null);
   const [credits, setCredits] = useState<number>(0);
   const [planType, setPlanType] = useState<string>('free');
-  const [calendarId, setCalendarId] = useState('');
   const [isSynced, setIsSynced] = useState(false);
   const [showSyncModal, setShowSyncModal] = useState(false);
   const [calendarProvider, setCalendarProvider] = useState<CalendarProvider>('google');
@@ -114,17 +113,11 @@ export default function Dashboard() {
           }
           setCredits(profile.credits);
           setPlanType(profile.plan_type);
-          if (profile.google_calendar_id) {
-            setCalendarId(profile.google_calendar_id);
-            setIsSynced(true);
-          }
           if (profile.calendar_provider) {
             setCalendarProvider(profile.calendar_provider as CalendarProvider);
+            setIsSynced(true);
           } else if (profile.google_calendar_id) {
             setCalendarProvider('google');
-          }
-          // For Apple/Outlook: if calendar_provider is set but no google_calendar_id, still mark as synced
-          if (!profile.google_calendar_id && profile.calendar_provider && profile.calendar_provider !== 'google') {
             setIsSynced(true);
           }
         }
@@ -152,8 +145,19 @@ export default function Dashboard() {
     setIsLoadingFeed(false);
   }
 
+  // Gate all note interactions behind calendar sync
+  const requireCalendarSync = () => {
+    if (isSynced) return true;
+    toast.info('Connect your calendar first', {
+      description: 'Sync a calendar so Autopilot can schedule your notes.',
+    });
+    setShowSyncModal(true);
+    return false;
+  };
+
   // Voice capture start/stop
   const toggleRecording = () => {
+    if (!requireCalendarSync()) return;
     if (isRecording) {
       recognitionRef.current?.stop();
       setIsRecording(false);
@@ -177,6 +181,7 @@ export default function Dashboard() {
 
   // Submit voice/text note to API
   const handleIntakeSubmit = async (inputStr: string) => {
+    if (!requireCalendarSync()) return;
     const finalInput = inputStr.trim();
     if (!finalInput || !userId) return;
 
@@ -245,20 +250,12 @@ export default function Dashboard() {
   };
 
   const handleSaveCalendarSync = async (provider: CalendarProvider) => {
-    if (provider === 'google' && (!userId || !calendarId)) return;
     if (!userId) return;
     setIsSaving(true);
-    
-    const updatePayload: Record<string, string> = {
-      calendar_provider: provider,
-    };
-    if (provider === 'google') {
-      updatePayload.google_calendar_id = calendarId;
-    }
 
     const { error } = await supabase
       .from('profiles')
-      .update(updatePayload)
+      .update({ calendar_provider: provider })
       .eq('id', userId);
 
     setIsSaving(false);
@@ -270,9 +267,7 @@ export default function Dashboard() {
       setShowSyncModal(false);
       const providerName = provider === 'google' ? 'Google Calendar' : provider === 'apple' ? 'Apple Calendar' : 'Outlook Calendar';
       toast.success(`${providerName} Connected`, {
-        description: provider === 'google'
-          ? 'Autopilot will now auto-schedule and sync events.'
-          : 'Subscribe using the iCal feed URL in your calendar app to see tasks.'
+        description: 'Your live task feed is set up — tasks Autopilot schedules will appear in your calendar.'
       });
     }
   };
@@ -342,14 +337,14 @@ export default function Dashboard() {
           <CardContent className="p-0 space-y-8 pt-4">
             {/* Input Selection Toggle */}
             <div className="flex justify-center p-1 bg-white/5 border border-white/5 rounded-full w-fit mx-auto">
-              <button 
-                onClick={() => { setInputType('voice'); stopRecording(); }}
+              <button
+                onClick={() => { if (!requireCalendarSync()) return; setInputType('voice'); stopRecording(); }}
                 className={`px-6 py-2.5 rounded-full text-sm font-bold tracking-tight transition-all flex items-center gap-2 ${inputType === 'voice' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
               >
                 <Mic className="w-4 h-4" /> Voice Note
               </button>
-              <button 
-                onClick={() => { setInputType('text'); stopRecording(); }}
+              <button
+                onClick={() => { if (!requireCalendarSync()) return; setInputType('text'); stopRecording(); }}
                 className={`px-6 py-2.5 rounded-full text-sm font-bold tracking-tight transition-all flex items-center gap-2 ${inputType === 'text' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
               >
                 <Keyboard className="w-4 h-4" /> Text Note
@@ -441,8 +436,9 @@ export default function Dashboard() {
                 >
                   <div className="space-y-2">
                     <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 ml-4">Text Input Note</label>
-                    <textarea 
+                    <textarea
                       value={textInput}
+                      onFocus={(e) => { if (!requireCalendarSync()) e.currentTarget.blur(); }}
                       onChange={(e) => setTextInput(e.target.value)}
                       placeholder="e.g. Schedule call with Syed tomorrow at 2 PM to review TAGtargets, 30 minutes"
                       className="w-full h-32 bg-white/5 border border-white/10 rounded-2xl p-5 text-white placeholder:text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-medium text-lg"
@@ -619,8 +615,6 @@ export default function Dashboard() {
       <AnimatePresence>
         {showSyncModal && (
           <CalendarSyncModal
-            calendarId={calendarId}
-            setCalendarId={setCalendarId}
             icalFeedUrl={userId ? `${window.location.origin}/api/calendar/${userId}` : '...'}
             onSave={handleSaveCalendarSync}
             onClose={() => setShowSyncModal(false)}

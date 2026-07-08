@@ -10,12 +10,7 @@ ALTER TABLE profiles ADD COLUMN IF NOT EXISTS google_calendar_id TEXT;
 -- 2. Add calendar_provider to profiles (needed for Apple/Outlook support)
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS calendar_provider TEXT DEFAULT 'google';
 
--- 3. Add space_id and project_id to tasks (needed for Spaces feature)
-ALTER TABLE tasks ADD COLUMN IF NOT EXISTS space_id UUID REFERENCES spaces(id) ON DELETE SET NULL;
-ALTER TABLE tasks ADD COLUMN IF NOT EXISTS project_id UUID REFERENCES projects(id) ON DELETE SET NULL;
-ALTER TABLE tasks ADD COLUMN IF NOT EXISTS assignee_label TEXT;
-
--- 4. Create spaces table if it doesn't exist
+-- 3. Create spaces table if it doesn't exist
 CREATE TABLE IF NOT EXISTS spaces (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id UUID REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,
@@ -27,7 +22,7 @@ CREATE TABLE IF NOT EXISTS spaces (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
 );
 
--- 5. Create projects table if it doesn't exist
+-- 4. Create projects table if it doesn't exist
 CREATE TABLE IF NOT EXISTS projects (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id UUID REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,
@@ -37,6 +32,11 @@ CREATE TABLE IF NOT EXISTS projects (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
 );
+
+-- 5. Add space_id and project_id to tasks (needed for Spaces feature)
+ALTER TABLE tasks ADD COLUMN IF NOT EXISTS space_id UUID REFERENCES spaces(id) ON DELETE SET NULL;
+ALTER TABLE tasks ADD COLUMN IF NOT EXISTS project_id UUID REFERENCES projects(id) ON DELETE SET NULL;
+ALTER TABLE tasks ADD COLUMN IF NOT EXISTS assignee_label TEXT;
 
 -- 6. Enable RLS on new tables
 ALTER TABLE spaces ENABLE ROW LEVEL SECURITY;

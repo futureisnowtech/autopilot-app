@@ -9,8 +9,6 @@ import {
   ChevronRight,
   ChevronLeft,
   Loader2,
-  Link2,
-  Smartphone,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from './ui/button';
@@ -22,8 +20,6 @@ import { toast } from 'sonner';
 export type CalendarProvider = 'google' | 'apple' | 'outlook';
 
 interface CalendarSyncModalProps {
-  calendarId: string;
-  setCalendarId: (v: string) => void;
   icalFeedUrl: string;
   onSave: (provider: CalendarProvider) => Promise<void>;
   onClose: () => void;
@@ -33,8 +29,7 @@ interface CalendarSyncModalProps {
 // ─────────────────────────────────────────────
 // Constants
 // ─────────────────────────────────────────────
-const SERVICE_EMAIL = 'autopilot-sync@autopilot-app-496415.iam.gserviceaccount.com';
-const GCAL_SETTINGS_URL = 'https://calendar.google.com/calendar/u/0/r/settings';
+const GCAL_ADD_BY_URL = 'https://calendar.google.com/calendar/u/0/r/settings/addbyurl';
 
 // ─────────────────────────────────────────────
 // Provider metadata
@@ -52,8 +47,8 @@ const PROVIDERS: {
   {
     id: 'google',
     name: 'Google Calendar',
-    tagline: 'Two-way sync. AI pushes events directly into your calendar.',
-    badge: 'Full Autopilot',
+    tagline: 'Subscribe to your live task feed. Auto-updates as Autopilot schedules.',
+    badge: 'Recommended',
     badgeColor: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
     icon: (
       <svg viewBox="0 0 24 24" className="w-7 h-7" fill="none">
@@ -104,8 +99,6 @@ const PROVIDERS: {
 // Main Modal
 // ─────────────────────────────────────────────
 export default function CalendarSyncModal({
-  calendarId,
-  setCalendarId,
   icalFeedUrl,
   onSave,
   onClose,
@@ -211,7 +204,7 @@ export default function CalendarSyncModal({
 
                 <div className="p-3.5 bg-indigo-500/5 border border-indigo-500/15 rounded-xl mt-2">
                   <p className="text-xs text-indigo-300/70 leading-relaxed">
-                    <span className="font-bold text-indigo-300">💡 Tip:</span> Google Calendar has the deepest integration — Autopilot pushes events directly into it. Apple and Outlook use a live subscription feed that auto-updates.
+                    <span className="font-bold text-indigo-300">💡 Tip:</span> All providers use your private live task feed. Subscribe once and every task Autopilot schedules appears in your calendar automatically.
                   </p>
                 </div>
               </motion.div>
@@ -227,103 +220,65 @@ export default function CalendarSyncModal({
                 transition={{ duration: 0.18 }}
                 className="space-y-4"
               >
-                {/* Step tabs */}
-                <GoogleStepTabs step={step} />
+                <ICalStepTabs step={step} />
 
                 {step === 1 && (
                   <div className="space-y-3">
-                    <InfoCard label="Step 1 of 3 — Open Google Calendar Settings">
+                    <InfoCard label="Step 1 of 3 — How Google Calendar Feed Works">
                       <p className="text-slate-300 text-sm leading-relaxed">
-                        You need to go to your <strong className="text-white">Google Calendar Settings</strong> page to share your calendar with Autopilot&apos;s AI engine.
+                        Google Calendar supports subscribing to external calendar feeds. Autopilot generates a live feed URL that Google polls. Every task Autopilot schedules automatically appears in your calendar.
                       </p>
-                      <div className="p-4 bg-black/30 border border-white/5 rounded-xl text-xs text-slate-400 leading-relaxed space-y-2 mt-1">
-                        <p className="font-bold text-slate-300">What you&apos;ll do on that page:</p>
-                        <ol className="list-decimal list-inside space-y-1.5 text-slate-400">
-                          <li>In the left sidebar, click on the calendar you want to use (usually your primary calendar — your email).</li>
-                          <li>Scroll to <span className="text-white font-semibold">&quot;Share with specific people or groups&quot;</span>.</li>
-                          <li>Add Autopilot&apos;s service email with &quot;Make changes to events&quot; permission.</li>
-                        </ol>
-                      </div>
-                      <div className="p-3 bg-amber-500/5 border border-amber-500/15 rounded-xl flex items-start gap-2 mt-1">
-                        <span className="text-amber-400 text-xs mt-0.5">⚠️</span>
-                        <p className="text-xs text-amber-200/70 leading-relaxed">
-                          That button opens Google Calendar Settings — it does <strong>not</strong> connect automatically. You still need to share the calendar on that page.
-                        </p>
-                      </div>
                     </InfoCard>
-                    <OpenSettingsBtn url={GCAL_SETTINGS_URL} label="Open Google Calendar Settings" />
-                    <p className="text-center text-xs text-slate-600">Keep this tab open, then come back for Step 2.</p>
                   </div>
                 )}
 
                 {step === 2 && (
                   <div className="space-y-3">
-                    <InfoCard label="Step 2 of 3 — Share Your Calendar">
+                    <InfoCard label="Step 2 of 3 — Copy Your Feed URL">
                       <p className="text-slate-300 text-sm leading-relaxed">
-                        Share your calendar with Autopilot&apos;s service account so it can create and manage events on your behalf.
+                        Copy the private feed URL below. You will paste it into your Google Calendar settings in the next step.
                       </p>
-                      <div className="space-y-2 mt-1">
-                        <MiniStep letter="A" title="Select your calendar">
-                          In the left sidebar, click the name of the calendar you want Autopilot to schedule into (usually your email address / primary calendar).
-                        </MiniStep>
-                        <MiniStep letter="B" title={<>Find &ldquo;Share with specific people&rdquo;</>}>
-                          Scroll down to the section titled <span className="text-white font-semibold">&quot;Share with specific people or groups&quot;</span> and click{' '}
-                          <span className="bg-blue-600/30 text-blue-300 px-1.5 py-0.5 rounded text-[11px] font-bold">+ Add people</span>.
-                        </MiniStep>
-                        <MiniStep letter="C" title="Add the service email & set permission">
-                          Paste the email below. Set permission to <span className="text-white font-semibold">"Make changes to events"</span> — not just "See all event details". Then press Send.
-                        </MiniStep>
-                      </div>
                     </InfoCard>
-
-                    <CopyBox label="Autopilot Service Email" value={SERVICE_EMAIL} />
-                    <OpenSettingsBtn url={GCAL_SETTINGS_URL} label="Re-open Google Calendar Settings" ghost />
+                    <CopyBox label="Your Autopilot Feed URL" value={icalFeedUrl} />
+                    <div className="p-3 bg-amber-500/5 border border-amber-500/15 rounded-xl flex items-start gap-2">
+                      <span className="text-amber-400 text-xs mt-0.5">🔒</span>
+                      <p className="text-xs text-amber-200/70 leading-relaxed">
+                        Keep this URL private — it contains your tasks. Anyone with this URL can view your scheduled events.
+                      </p>
+                    </div>
                   </div>
                 )}
 
                 {step === 3 && (
                   <div className="space-y-3">
-                    <InfoCard label="Step 3 of 3 — Enter Your Calendar ID">
-                      <p className="text-slate-300 text-sm leading-relaxed">
-                        Tell Autopilot <em>which</em> calendar to schedule into by entering your Calendar ID.
+                    <InfoCard label="Step 3 of 3 — Subscribe in Google Calendar">
+                      <p className="text-slate-300 text-sm leading-relaxed mb-2">
+                        Follow these simple steps in Google Calendar:
                       </p>
-                      <div className="space-y-2 mt-1">
-                        <MiniStep letter="A" title="Your primary calendar (most common)">
-                          Your Calendar ID is your <strong className="text-white">Gmail address</strong> (e.g. <code className="text-indigo-300 text-[11px]">yourname@gmail.com</code>). Try that first.
-                        </MiniStep>
-                        <MiniStep letter="B" title="For a secondary calendar">
-                          On the Google Calendar Settings page, scroll to <span className="text-white font-semibold">&quot;Integrate calendar&quot;</span>. Your Calendar ID is shown there — it usually ends in <code className="text-slate-300 text-[11px]">@group.calendar.google.com</code>.
-                        </MiniStep>
-                      </div>
+                      <ol className="space-y-2 text-xs text-slate-400 list-decimal list-inside p-3.5 bg-black/30 border border-white/5 rounded-xl">
+                        <li>Click <strong className="text-white">Open Google Calendar</strong> below — it takes you straight to the <strong className="text-white">From URL</strong> settings page.</li>
+                        <li>Paste the feed URL you copied in the previous step.</li>
+                        <li>Click <strong className="text-white">Add calendar</strong> — done!</li>
+                      </ol>
                     </InfoCard>
 
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">
-                        Your Google Calendar ID
-                      </label>
-                      <input
-                        value={calendarId}
-                        onChange={(e) => setCalendarId(e.target.value)}
-                        placeholder="yourname@gmail.com"
-                        className="w-full h-11 bg-white/5 border border-white/10 rounded-xl px-4 text-white text-sm font-semibold placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
-                      />
-                    </div>
-
                     <Button
-                      onClick={() => onSave('google')}
-                      disabled={!calendarId.trim() || isSaving}
-                      className="w-full h-11 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold rounded-xl text-sm shadow-lg shadow-indigo-500/20 transition-all disabled:opacity-50"
+                      onClick={() => {
+                        window.open(GCAL_ADD_BY_URL, '_blank');
+                        onSave('google');
+                      }}
+                      disabled={isSaving}
+                      className="w-full h-11 bg-gradient-to-r from-indigo-700 to-indigo-600 hover:from-indigo-600 hover:to-indigo-500 text-white font-bold rounded-xl text-sm shadow-lg transition-all cursor-pointer"
                     >
                       {isSaving ? (
-                        <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Connecting...</>
+                        <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Saving...</>
                       ) : (
-                        <><CheckCircle2 className="w-4 h-4 mr-2" />Connect Google Calendar</>
+                        <><ExternalLink className="w-4 h-4 mr-2" />Open Google Calendar</>
                       )}
                     </Button>
                   </div>
                 )}
 
-                {/* Nav */}
                 <ModalNav
                   step={step}
                   totalSteps={3}
@@ -577,20 +532,6 @@ function InfoCard({ label, children }: { label: string; children: React.ReactNod
   );
 }
 
-function MiniStep({ letter, title, children }: { letter: string; title: React.ReactNode; children: React.ReactNode }) {
-  return (
-    <div className="flex gap-3 p-3 bg-black/25 border border-white/5 rounded-xl">
-      <span className="w-5 h-5 shrink-0 rounded-full bg-indigo-500/20 text-indigo-400 text-[10px] font-black flex items-center justify-center border border-indigo-500/30 mt-0.5">
-        {letter}
-      </span>
-      <div>
-        <p className="text-white text-xs font-bold mb-0.5">{title}</p>
-        <p className="text-slate-400 text-[11px] leading-relaxed">{children}</p>
-      </div>
-    </div>
-  );
-}
-
 function CopyBox({ label, value }: { label: string; value: string }) {
   return (
     <div>
@@ -609,27 +550,6 @@ function CopyBox({ label, value }: { label: string; value: string }) {
       </div>
     </div>
   );
-}
-
-function OpenSettingsBtn({ url, label, ghost = false }: { url: string; label: string; ghost?: boolean }) {
-  return (
-    <button
-      onClick={() => window.open(url, '_blank')}
-      className={`w-full flex items-center justify-center gap-2 py-3 font-semibold rounded-xl transition-all text-sm ${
-        ghost
-          ? 'border border-white/8 text-slate-400 hover:text-white hover:border-white/20 hover:bg-white/5'
-          : 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white shadow-lg shadow-indigo-500/20'
-      }`}
-    >
-      <ExternalLink className="w-4 h-4" />
-      {label}
-    </button>
-  );
-}
-
-function GoogleStepTabs({ step }: { step: number }) {
-  const labels = ['Open Settings', 'Share Calendar', 'Enter ID'];
-  return <StepTabRow labels={labels} step={step} />;
 }
 
 function ICalStepTabs({ step }: { step: number }) {

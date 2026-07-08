@@ -44,7 +44,7 @@ export async function POST(req: Request) {
     // 0. Fetch Profile & Style Guide for context
     const { data: profile } = await supabaseAdmin
       .from('profiles')
-      .select('plan_type, credits, google_calendar_id, timezone, settings')
+      .select('plan_type, credits, google_calendar_id, google_refresh_token, timezone, settings')
       .eq('id', userId)
       .single();
 
@@ -182,9 +182,9 @@ export async function POST(req: Request) {
     let scheduledEnd = parsedTask.scheduled_end;
     let finalStatus = parsedTask.status;
 
-    if (!scheduledStart && parsedTask.status !== 'AI_Do' && profile.google_calendar_id) {
+    if (!scheduledStart && parsedTask.status !== 'AI_Do' && (profile.google_calendar_id || profile.google_refresh_token)) {
       const slot = await findAvailableSlot(
-        profile.google_calendar_id,
+        profile.google_calendar_id || 'primary',
         parsedTask.est_minutes || 30,
         parsedTask.urgency || 'Low',
         profile.timezone || 'America/New_York',
@@ -192,7 +192,8 @@ export async function POST(req: Request) {
           primary_window: profile.settings?.primary_window || '09:00-17:00',
           overflow_window: profile.settings?.overflow_window || '20:00-22:00',
           work_weekends: profile.settings?.work_weekends || false
-        }
+        },
+        profile.google_refresh_token
       );
       scheduledStart = slot.start.toISOString();
       scheduledEnd = slot.end.toISOString();
@@ -205,13 +206,14 @@ export async function POST(req: Request) {
     let calendarEventId = null;
     let calendarSynced = false;
 
-    if (scheduledStart && profile.google_calendar_id) {
+    if (scheduledStart && (profile.google_calendar_id || profile.google_refresh_token)) {
       const calendarSync = await pushToGoogleCalendar(
-        profile.google_calendar_id,
+        profile.google_calendar_id || 'primary',
         parsedTask.title,
         parsedTask.notes || '',
         scheduledStart,
-        scheduledEnd
+        scheduledEnd,
+        profile.google_refresh_token
       );
       if (calendarSync.success && calendarSync.eventId) {
         calendarEventId = calendarSync.eventId;
