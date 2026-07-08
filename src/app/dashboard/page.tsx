@@ -38,6 +38,7 @@ export default function Dashboard() {
   const [isSynced, setIsSynced] = useState(false);
   const [showSyncModal, setShowSyncModal] = useState(false);
   const [calendarProvider, setCalendarProvider] = useState<CalendarProvider>('google');
+  const [calendarEmail, setCalendarEmail] = useState<string>('');
   const [userEmail, setUserEmail] = useState<string>('');
   const [showCreditsModal, setShowCreditsModal] = useState(false);
   const [creditsModalDismissed, setCreditsModalDismissed] = useState(false);
@@ -106,7 +107,7 @@ export default function Dashboard() {
         // Fetch profile
         const { data: profile } = await supabase
           .from('profiles')
-          .select('credits, plan_type, google_calendar_id, calendar_provider, onboarding_completed')
+          .select('credits, plan_type, google_calendar_id, calendar_provider, calendar_email, onboarding_completed')
           .eq('id', session.user.id)
           .single();
 
@@ -119,6 +120,7 @@ export default function Dashboard() {
           setPlanType(profile.plan_type);
           if (profile.calendar_provider) {
             setCalendarProvider(profile.calendar_provider as CalendarProvider);
+            setCalendarEmail(profile.calendar_email || '');
             setIsSynced(true);
           } else if (profile.google_calendar_id) {
             setCalendarProvider('google');
@@ -259,13 +261,18 @@ export default function Dashboard() {
     );
   };
 
-  const handleSaveCalendarSync = async (provider: CalendarProvider) => {
+  const handleSaveCalendarSync = async (provider: CalendarProvider, email?: string) => {
     if (!userId) return;
     setIsSaving(true);
 
+    const updatePayload: Record<string, any> = { calendar_provider: provider };
+    if (email) {
+      updatePayload.calendar_email = email;
+    }
+
     const { error } = await supabase
       .from('profiles')
-      .update({ calendar_provider: provider })
+      .update(updatePayload)
       .eq('id', userId);
 
     setIsSaving(false);
@@ -274,6 +281,7 @@ export default function Dashboard() {
     } else {
       setIsSynced(true);
       setCalendarProvider(provider);
+      if (email) setCalendarEmail(email);
       setShowSyncModal(false);
       const providerName = provider === 'google' ? 'Google Calendar' : provider === 'apple' ? 'Apple Calendar' : 'Outlook Calendar';
       toast.success(`${providerName} Connected`, {
@@ -303,11 +311,11 @@ export default function Dashboard() {
             <div className="flex items-center gap-2">
               <Button
                 variant="ghost"
-                className="h-11 rounded-full px-5 font-bold transition-all border bg-indigo-500/10 text-indigo-400 border-indigo-500/20 hover:bg-indigo-500/20 shadow-[0_0_15px_rgba(99,102,241,0.1)] flex gap-2 items-center"
+                className="h-11 rounded-full px-4 font-bold transition-all border bg-indigo-500/10 text-indigo-400 border-indigo-500/20 hover:bg-indigo-500/20 shadow-[0_0_15px_rgba(99,102,241,0.1)] flex gap-2 items-center max-w-xs"
               >
-                <Calendar className="w-4 h-4" />
-                <span className="text-xs tracking-tight">
-                  {calendarProvider === 'google' ? 'Google Calendar' : calendarProvider === 'apple' ? 'Apple Calendar' : 'Outlook Calendar'}
+                <Calendar className="w-4 h-4 shrink-0" />
+                <span className="text-xs tracking-tight truncate">
+                  {calendarEmail || (calendarProvider === 'google' ? 'Google Calendar' : calendarProvider === 'apple' ? 'Apple Calendar' : 'Outlook Calendar')}
                 </span>
               </Button>
               <Button

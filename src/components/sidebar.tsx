@@ -91,13 +91,18 @@ export default function Sidebar() {
     }
   };
 
-  const handleSaveSync = async (provider: CalendarProvider) => {
+  const handleSaveSync = async (provider: CalendarProvider, email?: string) => {
     if (!userId) return;
     setIsSaving(true);
 
+    const updatePayload: Record<string, any> = { calendar_provider: provider };
+    if (email) {
+      updatePayload.calendar_email = email;
+    }
+
     const { error } = await supabase
       .from('profiles')
-      .update({ calendar_provider: provider })
+      .update(updatePayload)
       .eq('id', userId);
 
     setIsSaving(false);

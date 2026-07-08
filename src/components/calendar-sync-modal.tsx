@@ -21,7 +21,7 @@ export type CalendarProvider = 'google' | 'apple' | 'outlook';
 
 interface CalendarSyncModalProps {
   icalFeedUrl: string;
-  onSave: (provider: CalendarProvider) => Promise<void>;
+  onSave: (provider: CalendarProvider, email?: string) => Promise<void>;
   onClose: () => void;
   isSaving?: boolean;
 }
@@ -105,6 +105,7 @@ export default function CalendarSyncModal({
   isSaving = false,
 }: CalendarSyncModalProps) {
   const [provider, setProvider] = useState<CalendarProvider | null>(null);
+  const [calendarEmail, setCalendarEmail] = useState('');
 
   const selectedProvider = PROVIDERS.find((p) => p.id === provider);
 
@@ -237,8 +238,19 @@ export default function CalendarSyncModal({
                   </ol>
                 </div>
 
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">Calendar Email (Optional)</label>
+                  <input
+                    type="email"
+                    placeholder="e.g. your.email@gmail.com"
+                    value={calendarEmail}
+                    onChange={(e) => setCalendarEmail(e.target.value)}
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-sm text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+
                 <Button
-                  onClick={() => onSave('google')}
+                  onClick={() => onSave('google', calendarEmail || undefined)}
                   disabled={isSaving}
                   className="w-full h-11 bg-gradient-to-r from-indigo-700 to-indigo-600 hover:from-indigo-600 hover:to-indigo-500 text-white font-bold rounded-xl text-sm shadow-lg transition-all cursor-pointer"
                 >
@@ -301,8 +313,19 @@ export default function CalendarSyncModal({
                   </div>
                 </div>
 
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">Calendar Email (Optional)</label>
+                  <input
+                    type="email"
+                    placeholder="e.g. your.email@icloud.com"
+                    value={calendarEmail}
+                    onChange={(e) => setCalendarEmail(e.target.value)}
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-sm text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-slate-500"
+                  />
+                </div>
+
                 <Button
-                  onClick={() => onSave('apple')}
+                  onClick={() => onSave('apple', calendarEmail || undefined)}
                   disabled={isSaving}
                   className="w-full h-11 bg-gradient-to-r from-slate-700 to-slate-600 hover:from-slate-600 hover:to-slate-500 text-white font-bold rounded-xl text-sm shadow-lg transition-all"
                 >
@@ -372,8 +395,19 @@ export default function CalendarSyncModal({
                   </div>
                 </div>
 
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">Calendar Email (Optional)</label>
+                  <input
+                    type="email"
+                    placeholder="e.g. your.email@outlook.com"
+                    value={calendarEmail}
+                    onChange={(e) => setCalendarEmail(e.target.value)}
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-sm text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
                 <Button
-                  onClick={() => onSave('outlook')}
+                  onClick={() => onSave('outlook', calendarEmail || undefined)}
                   disabled={isSaving}
                   className="w-full h-11 bg-gradient-to-r from-blue-700 to-blue-500 hover:from-blue-600 hover:to-blue-400 text-white font-bold rounded-xl text-sm shadow-lg transition-all"
                 >
