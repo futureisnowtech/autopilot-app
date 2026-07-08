@@ -38,6 +38,9 @@ export default function Dashboard() {
   const [isSynced, setIsSynced] = useState(false);
   const [showSyncModal, setShowSyncModal] = useState(false);
   const [calendarProvider, setCalendarProvider] = useState<CalendarProvider>('google');
+  const [userEmail, setUserEmail] = useState<string>('');
+  const [showCreditsModal, setShowCreditsModal] = useState(false);
+  const [creditsModalDismissed, setCreditsModalDismissed] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
   // Intake UI states
@@ -98,7 +101,8 @@ export default function Dashboard() {
       if (session) {
         setUserId(session.user.id);
         setUserName(session.user.user_metadata.full_name || session.user.email?.split('@')[0] || 'Founder');
-        
+        setUserEmail(session.user.email || '');
+
         // Fetch profile
         const { data: profile } = await supabase
           .from('profiles')
@@ -120,8 +124,14 @@ export default function Dashboard() {
             setCalendarProvider('google');
             setIsSynced(true);
           }
+
+          // Show credits modal once per session if not dismissed
+          if (!sessionStorage.getItem('creditsModalShown')) {
+            setShowCreditsModal(true);
+            sessionStorage.setItem('creditsModalShown', 'true');
+          }
         }
-        
+
         fetchRecentTasks(session.user.id);
       } else {
         window.location.href = '/auth';
@@ -288,25 +298,44 @@ export default function Dashboard() {
           <span className="text-2xl font-black tracking-tighter text-indigo-400 uppercase">Autopilot</span>
         </div>
 
-        <div className="flex items-center gap-4">
-          <Button 
-            onClick={() => setShowSyncModal(true)}
-            variant="ghost"
-            className={`h-11 rounded-full px-5 font-bold transition-all border flex gap-2 items-center ${
-              isSynced 
-                ? 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20 hover:bg-indigo-500/20 shadow-[0_0_15px_rgba(99,102,241,0.1)]' 
-                : 'text-amber-400 border-amber-500/20 hover:bg-amber-500/10 bg-amber-500/5'
-            }`}
-          >
-            <Calendar className="w-4 h-4" />
-            <span className="text-xs tracking-tight">
-              {isSynced ? 'Calendar Active' : 'Setup Sync'}
-            </span>
-          </Button>
+        <div className="flex items-center gap-2">
+          {isSynced && (
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                className="h-11 rounded-full px-5 font-bold transition-all border bg-indigo-500/10 text-indigo-400 border-indigo-500/20 hover:bg-indigo-500/20 shadow-[0_0_15px_rgba(99,102,241,0.1)] flex gap-2 items-center"
+              >
+                <Calendar className="w-4 h-4" />
+                <span className="text-xs tracking-tight">
+                  {calendarProvider === 'google' ? 'Google Calendar' : calendarProvider === 'apple' ? 'Apple Calendar' : 'Outlook Calendar'}
+                </span>
+              </Button>
+              <Button
+                onClick={() => setShowSyncModal(true)}
+                variant="ghost"
+                className="h-11 rounded-full px-4 font-bold text-xs text-slate-500 hover:text-indigo-400 hover:bg-indigo-500/10 transition-all"
+              >
+                Switch
+              </Button>
+            </div>
+          )}
+          {!isSynced && (
+            <Button
+              onClick={() => setShowSyncModal(true)}
+              className="h-11 rounded-full px-5 font-bold text-xs bg-amber-500/15 text-amber-400 border border-amber-500/30 hover:bg-amber-500/25 transition-all flex gap-2 items-center"
+            >
+              <Calendar className="w-4 h-4" />
+              Setup Sync
+            </Button>
+          )}
 
-          <Badge className="bg-white/5 text-slate-300 border-white/10 px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider">
+          <Button
+            onClick={() => setShowCreditsModal(true)}
+            className="h-11 rounded-full px-4 font-bold text-xs bg-white/5 text-slate-300 border border-white/10 hover:bg-white/10 transition-all cursor-pointer"
+            title="Credits help"
+          >
             {credits} Credits
-          </Badge>
+          </Button>
           
           <Button 
             onClick={handleSignOut} 
@@ -620,6 +649,78 @@ export default function Dashboard() {
             onClose={() => setShowSyncModal(false)}
             isSaving={isSaving}
           />
+        )}
+      </AnimatePresence>
+
+      {/* Credits Explanation Modal */}
+      <AnimatePresence>
+        {showCreditsModal && (
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 sm:p-6">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowCreditsModal(false)}
+              className="absolute inset-0 bg-black/85 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 24 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 24 }}
+              transition={{ type: 'spring', damping: 28, stiffness: 320 }}
+              className="relative w-full max-w-md bg-[#13132b] border border-white/10 rounded-[28px] shadow-2xl overflow-hidden"
+            >
+              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500" />
+
+              <div className="p-8 space-y-6">
+                <div>
+                  <h2 className="text-2xl font-black tracking-tight text-white mb-2">
+                    How Credits Work
+                  </h2>
+                  <p className="text-sm text-slate-400 font-medium">
+                    Your AI currency for scheduling and execution
+                  </p>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="p-4 bg-indigo-500/10 border border-indigo-500/20 rounded-xl">
+                    <p className="text-sm font-bold text-indigo-300 mb-1">📝 Note Submissions</p>
+                    <p className="text-xs text-slate-400 leading-relaxed">
+                      Every voice or text note you create uses credits. Submitting a note reserves credit to ensure processing capacity.
+                    </p>
+                  </div>
+
+                  <div className="p-4 bg-purple-500/10 border border-purple-500/20 rounded-xl">
+                    <p className="text-sm font-bold text-purple-300 mb-1">⚙️ AI Execution</p>
+                    <p className="text-xs text-slate-400 leading-relaxed">
+                      When Autopilot runs an "AI DO" task (research, generation, analysis), it deducts 1 credit for the Gemini execution.
+                    </p>
+                  </div>
+
+                  <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-xl">
+                    <p className="text-sm font-bold text-emerald-300 mb-1">📅 Your Current Plan</p>
+                    <p className="text-xs text-slate-400 leading-relaxed">
+                      <span className="text-white font-bold">{planType === 'free' ? '10 credits/month' : 'Unlimited credits'}</span> {planType === 'free' ? '— refreshes on the 1st of every month.' : '— upgrade benefit.'}
+                    </p>
+                  </div>
+
+                  <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-xl">
+                    <p className="text-sm font-bold text-amber-300 mb-1">💡 Your Balance</p>
+                    <p className="text-xs text-slate-400 leading-relaxed">
+                      You currently have <span className="text-white font-bold">{credits} credits</span> available. {credits > 0 ? 'You\'re ready to start!' : 'Upgrade or wait for your monthly refresh.'}
+                    </p>
+                  </div>
+                </div>
+
+                <Button
+                  onClick={() => setShowCreditsModal(false)}
+                  className="w-full h-11 bg-gradient-to-r from-indigo-700 to-indigo-600 hover:from-indigo-600 hover:to-indigo-500 text-white font-bold rounded-xl text-sm shadow-lg transition-all"
+                >
+                  Got It
+                </Button>
+              </div>
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
     </div>
