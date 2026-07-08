@@ -105,21 +105,15 @@ export default function CalendarSyncModal({
   isSaving = false,
 }: CalendarSyncModalProps) {
   const [provider, setProvider] = useState<CalendarProvider | null>(null);
-  const [step, setStep] = useState(1);
 
   const selectedProvider = PROVIDERS.find((p) => p.id === provider);
 
   const handleProviderSelect = (id: CalendarProvider) => {
     setProvider(id);
-    setStep(1);
   };
 
   const handleBack = () => {
-    if (step > 1) {
-      setStep((s) => s - 1);
-    } else {
-      setProvider(null);
-    }
+    setProvider(null);
   };
 
   return (
@@ -213,303 +207,190 @@ export default function CalendarSyncModal({
             {/* ── Google Calendar Flow ── */}
             {provider === 'google' && (
               <motion.div
-                key={`google-step-${step}`}
+                key="google-simple"
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -20 }}
                 transition={{ duration: 0.18 }}
                 className="space-y-4"
               >
-                <ICalStepTabs step={step} />
-
-                {step === 1 && (
-                  <div className="space-y-3">
-                    <InfoCard label="Step 1 of 3 — How Google Calendar Feed Works">
-                      <p className="text-slate-300 text-sm leading-relaxed">
-                        Google Calendar supports subscribing to external calendar feeds. Autopilot generates a live feed URL that Google polls. Every task Autopilot schedules automatically appears in your calendar.
-                      </p>
-                    </InfoCard>
+                <InfoCard label="Add Your Feed to Google Calendar">
+                  <p className="text-slate-300 text-sm leading-relaxed mb-4">
+                    Copy your feed URL, then paste it into Google Calendar.
+                  </p>
+                  <CopyBox label="Your Autopilot Feed URL" value={icalFeedUrl} />
+                  <div className="p-3 mt-3 bg-amber-500/5 border border-amber-500/15 rounded-xl flex items-start gap-2">
+                    <span className="text-amber-400 text-xs mt-0.5">🔒</span>
+                    <p className="text-xs text-amber-200/70 leading-relaxed">
+                      Keep this URL private — it contains your tasks.
+                    </p>
                   </div>
-                )}
+                </InfoCard>
 
-                {step === 2 && (
-                  <div className="space-y-3">
-                    <InfoCard label="Step 2 of 3 — Copy Your Feed URL">
-                      <p className="text-slate-300 text-sm leading-relaxed">
-                        Copy the private feed URL below. You will paste it into your Google Calendar settings in the next step.
-                      </p>
-                    </InfoCard>
-                    <CopyBox label="Your Autopilot Feed URL" value={icalFeedUrl} />
-                    <div className="p-3 bg-amber-500/5 border border-amber-500/15 rounded-xl flex items-start gap-2">
-                      <span className="text-amber-400 text-xs mt-0.5">🔒</span>
-                      <p className="text-xs text-amber-200/70 leading-relaxed">
-                        Keep this URL private — it contains your tasks. Anyone with this URL can view your scheduled events.
-                      </p>
-                    </div>
-                  </div>
-                )}
+                <div className="space-y-2 p-4 bg-black/30 border border-white/5 rounded-xl">
+                  <p className="text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">Steps:</p>
+                  <ol className="space-y-1.5 text-xs text-slate-400 list-decimal list-inside">
+                    <li>Open <strong className="text-white">Google Calendar</strong></li>
+                    <li>Go to <strong className="text-white">Settings → Add other calendars</strong></li>
+                    <li>Click <strong className="text-white">Subscribe to calendar</strong></li>
+                    <li>Paste your feed URL and click <strong className="text-white">Add calendar</strong></li>
+                  </ol>
+                </div>
 
-                {step === 3 && (
-                  <div className="space-y-3">
-                    <InfoCard label="Step 3 of 3 — Subscribe in Google Calendar">
-                      <p className="text-slate-300 text-sm leading-relaxed mb-2">
-                        Follow these simple steps in Google Calendar:
-                      </p>
-                      <ol className="space-y-2 text-xs text-slate-400 list-decimal list-inside p-3.5 bg-black/30 border border-white/5 rounded-xl">
-                        <li>Click <strong className="text-white">Open Google Calendar</strong> below — it takes you straight to the <strong className="text-white">From URL</strong> settings page.</li>
-                        <li>Paste the feed URL you copied in the previous step.</li>
-                        <li>Click <strong className="text-white">Add calendar</strong> — done!</li>
-                      </ol>
-                    </InfoCard>
+                <Button
+                  onClick={() => onSave('google')}
+                  disabled={isSaving}
+                  className="w-full h-11 bg-gradient-to-r from-indigo-700 to-indigo-600 hover:from-indigo-600 hover:to-indigo-500 text-white font-bold rounded-xl text-sm shadow-lg transition-all cursor-pointer"
+                >
+                  {isSaving ? (
+                    <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Saving...</>
+                  ) : (
+                    <>Done</>
+                  )}
+                </Button>
 
-                    <Button
-                      onClick={() => {
-                        window.open(GCAL_ADD_BY_URL, '_blank');
-                        onSave('google');
-                      }}
-                      disabled={isSaving}
-                      className="w-full h-11 bg-gradient-to-r from-indigo-700 to-indigo-600 hover:from-indigo-600 hover:to-indigo-500 text-white font-bold rounded-xl text-sm shadow-lg transition-all cursor-pointer"
-                    >
-                      {isSaving ? (
-                        <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Saving...</>
-                      ) : (
-                        <><ExternalLink className="w-4 h-4 mr-2" />Open Google Calendar</>
-                      )}
-                    </Button>
-                  </div>
-                )}
-
-                <ModalNav
-                  step={step}
-                  totalSteps={3}
-                  onBack={handleBack}
-                  onNext={step < 3 ? () => setStep((s) => s + 1) : undefined}
-                />
+                <Button
+                  variant="ghost"
+                  onClick={handleBack}
+                  className="w-full text-slate-500 hover:text-white text-sm font-semibold px-2"
+                >
+                  ← Back
+                </Button>
               </motion.div>
             )}
 
             {/* ── Apple Calendar Flow ── */}
             {provider === 'apple' && (
               <motion.div
-                key={`apple-step-${step}`}
+                key="apple-simple"
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -20 }}
                 transition={{ duration: 0.18 }}
                 className="space-y-4"
               >
-                <ICalStepTabs step={step} />
-
-                {step === 1 && (
-                  <div className="space-y-3">
-                    <InfoCard label="Step 1 of 3 — How Apple Calendar Sync Works">
-                      <p className="text-slate-300 text-sm leading-relaxed">
-                        Apple Calendar supports <strong className="text-white">iCal feed subscriptions</strong> — a live URL that Apple Calendar polls regularly. Every task Autopilot schedules automatically appears in your calendar.
-                      </p>
-                      <div className="p-4 bg-black/30 border border-white/5 rounded-xl space-y-2 mt-1">
-                        <p className="text-xs font-bold text-slate-300">What this means for you:</p>
-                        <ul className="space-y-1.5 text-xs text-slate-400">
-                          <li className="flex items-start gap-2"><CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />Your Autopilot tasks appear in Apple Calendar automatically</li>
-                          <li className="flex items-start gap-2"><CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />Works on iPhone, iPad, and Mac</li>
-                          <li className="flex items-start gap-2"><CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />No password or special permissions required</li>
-                          <li className="flex items-start gap-2"><span className="text-slate-600 text-xs shrink-0 mt-0.5">→</span><span className="text-slate-500">Updates may take up to 15 minutes to appear (Apple&apos;s refresh rate)</span></li>
-                        </ul>
-                      </div>
-                    </InfoCard>
+                <InfoCard label="Add Your Feed to Apple Calendar">
+                  <p className="text-slate-300 text-sm leading-relaxed mb-4">
+                    Copy your feed URL, then paste it into Apple Calendar.
+                  </p>
+                  <CopyBox label="Your Autopilot iCal Feed URL" value={icalFeedUrl} />
+                  <div className="p-3 mt-3 bg-amber-500/5 border border-amber-500/15 rounded-xl flex items-start gap-2">
+                    <span className="text-amber-400 text-xs mt-0.5">🔒</span>
+                    <p className="text-xs text-amber-200/70 leading-relaxed">
+                      Keep this URL private — it contains your tasks.
+                    </p>
                   </div>
-                )}
+                </InfoCard>
 
-                {step === 2 && (
-                  <div className="space-y-3">
-                    <InfoCard label="Step 2 of 3 — Copy Your Feed URL">
-                      <p className="text-slate-300 text-sm leading-relaxed">
-                        This is your private Autopilot iCal feed. Copy the URL below — you&apos;ll paste it into Apple Calendar in the next step.
-                      </p>
-                    </InfoCard>
-                    <CopyBox label="Your Autopilot iCal Feed URL" value={icalFeedUrl} />
-                    <div className="p-3 bg-amber-500/5 border border-amber-500/15 rounded-xl flex items-start gap-2">
-                      <span className="text-amber-400 text-xs mt-0.5">🔒</span>
-                      <p className="text-xs text-amber-200/70 leading-relaxed">
-                        Keep this URL private — it contains your tasks. Anyone with this URL can view your scheduled events.
-                      </p>
-                    </div>
+                <div className="space-y-3">
+                  <div className="space-y-2 p-4 bg-black/30 border border-white/5 rounded-xl">
+                    <p className="text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">iPhone / iPad:</p>
+                    <ol className="space-y-1 text-xs text-slate-400 list-decimal list-inside">
+                      <li>Settings → <strong className="text-white">Calendar</strong></li>
+                      <li>Tap <strong className="text-white">Accounts → Add Account → Other</strong></li>
+                      <li>Tap <strong className="text-white">Add Subscribed Calendar</strong> and paste URL</li>
+                    </ol>
                   </div>
-                )}
 
-                {step === 3 && (
-                  <div className="space-y-3">
-                    <InfoCard label="Step 3 of 3 — Subscribe in Apple Calendar">
-                      <p className="text-slate-300 text-sm leading-relaxed mb-2">
-                        Choose your device and follow the steps:
-                      </p>
-                      <DeviceTabs
-                        tabs={[
-                          {
-                            label: '📱 iPhone / iPad',
-                            content: (
-                              <ol className="space-y-1.5 text-xs text-slate-400 list-decimal list-inside">
-                                <li>Open the <strong className="text-white">Settings</strong> app</li>
-                                <li>Tap <strong className="text-white">Calendar</strong> → <strong className="text-white">Accounts</strong></li>
-                                <li>Tap <strong className="text-white">Add Account</strong> → <strong className="text-white">Other</strong></li>
-                                <li>Tap <strong className="text-white">Add Subscribed Calendar</strong></li>
-                                <li>Paste your feed URL and tap <strong className="text-white">Next</strong></li>
-                                <li>Tap <strong className="text-white">Save</strong> — done!</li>
-                              </ol>
-                            ),
-                          },
-                          {
-                            label: '💻 Mac',
-                            content: (
-                              <ol className="space-y-1.5 text-xs text-slate-400 list-decimal list-inside">
-                                <li>Open the <strong className="text-white">Calendar</strong> app</li>
-                                <li>Click <strong className="text-white">File</strong> → <strong className="text-white">New Calendar Subscription…</strong></li>
-                                <li>Paste your feed URL and click <strong className="text-white">Subscribe</strong></li>
-                                <li>Name it &quot;Autopilot Tasks&quot; and click <strong className="text-white">OK</strong></li>
-                              </ol>
-                            ),
-                          },
-                        ]}
-                      />
-                    </InfoCard>
-
-                    <Button
-                      onClick={() => onSave('apple')}
-                      disabled={isSaving}
-                      className="w-full h-11 bg-gradient-to-r from-slate-700 to-slate-600 hover:from-slate-600 hover:to-slate-500 text-white font-bold rounded-xl text-sm shadow-lg transition-all"
-                    >
-                      {isSaving ? (
-                        <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Saving...</>
-                      ) : (
-                        <><CheckCircle2 className="w-4 h-4 mr-2" />Mark Apple Calendar as Connected</>
-                      )}
-                    </Button>
+                  <div className="space-y-2 p-4 bg-black/30 border border-white/5 rounded-xl">
+                    <p className="text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">Mac:</p>
+                    <ol className="space-y-1 text-xs text-slate-400 list-decimal list-inside">
+                      <li>Calendar app → <strong className="text-white">File → New Calendar Subscription</strong></li>
+                      <li>Paste URL and click <strong className="text-white">Subscribe</strong></li>
+                    </ol>
                   </div>
-                )}
+                </div>
 
-                <ModalNav
-                  step={step}
-                  totalSteps={3}
-                  onBack={handleBack}
-                  onNext={step < 3 ? () => setStep((s) => s + 1) : undefined}
-                />
+                <Button
+                  onClick={() => onSave('apple')}
+                  disabled={isSaving}
+                  className="w-full h-11 bg-gradient-to-r from-slate-700 to-slate-600 hover:from-slate-600 hover:to-slate-500 text-white font-bold rounded-xl text-sm shadow-lg transition-all"
+                >
+                  {isSaving ? (
+                    <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Saving...</>
+                  ) : (
+                    <>Done</>
+                  )}
+                </Button>
+
+                <Button
+                  variant="ghost"
+                  onClick={handleBack}
+                  className="w-full text-slate-500 hover:text-white text-sm font-semibold px-2"
+                >
+                  ← Back
+                </Button>
               </motion.div>
             )}
 
             {/* ── Outlook Calendar Flow ── */}
             {provider === 'outlook' && (
               <motion.div
-                key={`outlook-step-${step}`}
+                key="outlook-simple"
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -20 }}
                 transition={{ duration: 0.18 }}
                 className="space-y-4"
               >
-                <ICalStepTabs step={step} />
-
-                {step === 1 && (
-                  <div className="space-y-3">
-                    <InfoCard label="Step 1 of 3 — How Outlook Calendar Sync Works">
-                      <p className="text-slate-300 text-sm leading-relaxed">
-                        Outlook supports <strong className="text-white">calendar subscriptions via iCal URL</strong>. Your scheduled tasks will appear as a separate subscribed calendar inside Outlook.
-                      </p>
-                      <div className="p-4 bg-black/30 border border-white/5 rounded-xl space-y-2 mt-1">
-                        <p className="text-xs font-bold text-slate-300">What this means for you:</p>
-                        <ul className="space-y-1.5 text-xs text-slate-400">
-                          <li className="flex items-start gap-2"><CheckCircle2 className="w-3.5 h-3.5 text-blue-400 shrink-0 mt-0.5" />Tasks show up in Outlook, Teams, and Microsoft 365</li>
-                          <li className="flex items-start gap-2"><CheckCircle2 className="w-3.5 h-3.5 text-blue-400 shrink-0 mt-0.5" />Works in Outlook desktop, web (outlook.com), and mobile</li>
-                          <li className="flex items-start gap-2"><CheckCircle2 className="w-3.5 h-3.5 text-blue-400 shrink-0 mt-0.5" />No Microsoft account login required from Autopilot</li>
-                          <li className="flex items-start gap-2"><span className="text-slate-600 text-xs shrink-0 mt-0.5">→</span><span className="text-slate-500">Outlook refreshes subscriptions approximately every 3 hours</span></li>
-                        </ul>
-                      </div>
-                    </InfoCard>
+                <InfoCard label="Add Your Feed to Outlook">
+                  <p className="text-slate-300 text-sm leading-relaxed mb-4">
+                    Copy your feed URL, then paste it into Outlook.
+                  </p>
+                  <CopyBox label="Your Autopilot iCal Feed URL" value={icalFeedUrl} />
+                  <div className="p-3 mt-3 bg-amber-500/5 border border-amber-500/15 rounded-xl flex items-start gap-2">
+                    <span className="text-amber-400 text-xs mt-0.5">🔒</span>
+                    <p className="text-xs text-amber-200/70 leading-relaxed">
+                      Keep this URL private — it contains your tasks.
+                    </p>
                   </div>
-                )}
+                </InfoCard>
 
-                {step === 2 && (
-                  <div className="space-y-3">
-                    <InfoCard label="Step 2 of 3 — Copy Your Feed URL">
-                      <p className="text-slate-300 text-sm leading-relaxed">
-                        This is your private Autopilot iCal feed. Copy the URL below — you&apos;ll paste it into Outlook in the next step.
-                      </p>
-                    </InfoCard>
-                    <CopyBox label="Your Autopilot iCal Feed URL" value={icalFeedUrl} />
-                    <div className="p-3 bg-amber-500/5 border border-amber-500/15 rounded-xl flex items-start gap-2">
-                      <span className="text-amber-400 text-xs mt-0.5">🔒</span>
-                      <p className="text-xs text-amber-200/70 leading-relaxed">
-                        Keep this URL private — it contains your scheduled tasks. Anyone with it can see your Autopilot events.
-                      </p>
-                    </div>
+                <div className="space-y-3">
+                  <div className="space-y-2 p-4 bg-black/30 border border-white/5 rounded-xl">
+                    <p className="text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">Outlook Web (outlook.com):</p>
+                    <ol className="space-y-1 text-xs text-slate-400 list-decimal list-inside">
+                      <li>Calendar → <strong className="text-white">Add calendar → Subscribe from web</strong></li>
+                      <li>Paste URL and click <strong className="text-white">Import</strong></li>
+                    </ol>
                   </div>
-                )}
 
-                {step === 3 && (
-                  <div className="space-y-3">
-                    <InfoCard label="Step 3 of 3 — Subscribe in Outlook">
-                      <p className="text-slate-300 text-sm leading-relaxed mb-2">
-                        Choose your Outlook version and follow the steps:
-                      </p>
-                      <DeviceTabs
-                        tabs={[
-                          {
-                            label: '🌐 Outlook Web',
-                            content: (
-                              <ol className="space-y-1.5 text-xs text-slate-400 list-decimal list-inside">
-                                <li>Go to <strong className="text-white">outlook.com</strong> → <strong className="text-white">Calendar</strong></li>
-                                <li>Click <strong className="text-white">Add calendar</strong> (left sidebar)</li>
-                                <li>Select <strong className="text-white">Subscribe from web</strong></li>
-                                <li>Paste your feed URL</li>
-                                <li>Name it <strong className="text-white">&quot;Autopilot Tasks&quot;</strong> and click <strong className="text-white">Import</strong></li>
-                              </ol>
-                            ),
-                          },
-                          {
-                            label: '🖥️ Outlook Desktop',
-                            content: (
-                              <ol className="space-y-1.5 text-xs text-slate-400 list-decimal list-inside">
-                                <li>Open <strong className="text-white">Outlook</strong> → <strong className="text-white">Calendar</strong> view</li>
-                                <li>Click <strong className="text-white">Add Calendar</strong> in the toolbar</li>
-                                <li>Choose <strong className="text-white">From Internet…</strong></li>
-                                <li>Paste your feed URL and click <strong className="text-white">OK</strong></li>
-                                <li>Click <strong className="text-white">Yes</strong> when prompted to add the subscription</li>
-                              </ol>
-                            ),
-                          },
-                          {
-                            label: '📱 Outlook Mobile',
-                            content: (
-                              <ol className="space-y-1.5 text-xs text-slate-400 list-decimal list-inside">
-                                <li>Open the <strong className="text-white">Outlook</strong> app → tap the calendar icon</li>
-                                <li>Tap the <strong className="text-white">+</strong> button → <strong className="text-white">Add shared calendar</strong></li>
-                                <li>Choose <strong className="text-white">Add via link</strong></li>
-                                <li>Paste your feed URL and tap <strong className="text-white">Add</strong></li>
-                              </ol>
-                            ),
-                          },
-                        ]}
-                      />
-                    </InfoCard>
-
-                    <Button
-                      onClick={() => onSave('outlook')}
-                      disabled={isSaving}
-                      className="w-full h-11 bg-gradient-to-r from-blue-700 to-blue-500 hover:from-blue-600 hover:to-blue-400 text-white font-bold rounded-xl text-sm shadow-lg transition-all"
-                    >
-                      {isSaving ? (
-                        <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Saving...</>
-                      ) : (
-                        <><CheckCircle2 className="w-4 h-4 mr-2" />Mark Outlook as Connected</>
-                      )}
-                    </Button>
+                  <div className="space-y-2 p-4 bg-black/30 border border-white/5 rounded-xl">
+                    <p className="text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">Outlook Desktop:</p>
+                    <ol className="space-y-1 text-xs text-slate-400 list-decimal list-inside">
+                      <li>Calendar view → <strong className="text-white">Add Calendar → From Internet</strong></li>
+                      <li>Paste URL and click <strong className="text-white">OK</strong></li>
+                    </ol>
                   </div>
-                )}
 
-                <ModalNav
-                  step={step}
-                  totalSteps={3}
-                  onBack={handleBack}
-                  onNext={step < 3 ? () => setStep((s) => s + 1) : undefined}
-                />
+                  <div className="space-y-2 p-4 bg-black/30 border border-white/5 rounded-xl">
+                    <p className="text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">Outlook Mobile:</p>
+                    <ol className="space-y-1 text-xs text-slate-400 list-decimal list-inside">
+                      <li>Calendar icon → <strong className="text-white">Add shared calendar → Add via link</strong></li>
+                      <li>Paste URL and tap <strong className="text-white">Add</strong></li>
+                    </ol>
+                  </div>
+                </div>
+
+                <Button
+                  onClick={() => onSave('outlook')}
+                  disabled={isSaving}
+                  className="w-full h-11 bg-gradient-to-r from-blue-700 to-blue-500 hover:from-blue-600 hover:to-blue-400 text-white font-bold rounded-xl text-sm shadow-lg transition-all"
+                >
+                  {isSaving ? (
+                    <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Saving...</>
+                  ) : (
+                    <>Done</>
+                  )}
+                </Button>
+
+                <Button
+                  variant="ghost"
+                  onClick={handleBack}
+                  className="w-full text-slate-500 hover:text-white text-sm font-semibold px-2"
+                >
+                  ← Back
+                </Button>
               </motion.div>
             )}
           </AnimatePresence>
@@ -552,98 +433,3 @@ function CopyBox({ label, value }: { label: string; value: string }) {
   );
 }
 
-function ICalStepTabs({ step }: { step: number }) {
-  const labels = ['How it works', 'Copy URL', 'Subscribe'];
-  return <StepTabRow labels={labels} step={step} />;
-}
-
-function StepTabRow({ labels, step }: { labels: string[]; step: number }) {
-  return (
-    <div className="flex items-center gap-1.5 mb-1">
-      {labels.map((label, i) => {
-        const s = i + 1;
-        return (
-          <React.Fragment key={s}>
-            <div
-              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold border transition-all ${
-                step === s
-                  ? 'bg-indigo-500/20 text-indigo-400 border-indigo-500/40'
-                  : step > s
-                  ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
-                  : 'text-slate-600 border-white/5'
-              }`}
-            >
-              {step > s ? <CheckCircle2 className="w-3 h-3" /> : <span>{s}</span>}
-              <span className="hidden sm:block">{label}</span>
-            </div>
-            {i < labels.length - 1 && (
-              <div className={`flex-1 h-px ${step > s ? 'bg-emerald-500/30' : 'bg-white/5'}`} />
-            )}
-          </React.Fragment>
-        );
-      })}
-    </div>
-  );
-}
-
-function ModalNav({
-  step,
-  totalSteps,
-  onBack,
-  onNext,
-}: {
-  step: number;
-  totalSteps: number;
-  onBack: () => void;
-  onNext?: () => void;
-}) {
-  return (
-    <div className="flex items-center justify-between pt-4 mt-2 border-t border-white/5">
-      <Button
-        variant="ghost"
-        onClick={onBack}
-        className="text-slate-500 hover:text-white gap-1 text-sm font-semibold px-2"
-      >
-        <ChevronLeft className="w-4 h-4" />
-        {step === 1 ? 'Change Provider' : 'Back'}
-      </Button>
-      <span className="text-xs text-slate-700 font-bold">{step} / {totalSteps}</span>
-      {onNext ? (
-        <Button
-          onClick={onNext}
-          className="bg-indigo-600 hover:bg-indigo-500 text-white gap-1 text-sm font-bold px-4 rounded-xl"
-        >
-          Next <ChevronRight className="w-4 h-4" />
-        </Button>
-      ) : (
-        <div className="w-20" />
-      )}
-    </div>
-  );
-}
-
-function DeviceTabs({ tabs }: { tabs: { label: string; content: React.ReactNode }[] }) {
-  const [active, setActive] = useState(0);
-  return (
-    <div className="space-y-2">
-      <div className="flex gap-1 flex-wrap">
-        {tabs.map((t, i) => (
-          <button
-            key={i}
-            onClick={() => setActive(i)}
-            className={`px-2.5 py-1 rounded-full text-[10px] font-bold border transition-all ${
-              active === i
-                ? 'bg-indigo-500/20 text-indigo-300 border-indigo-500/40'
-                : 'text-slate-600 border-white/5 hover:text-slate-400 hover:border-white/10'
-            }`}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
-      <div className="p-3.5 bg-black/30 border border-white/5 rounded-xl">
-        {tabs[active].content}
-      </div>
-    </div>
-  );
-}
