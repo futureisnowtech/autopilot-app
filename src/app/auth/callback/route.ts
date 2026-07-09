@@ -52,6 +52,6 @@ export async function GET(request: Request) {
   }
 
   // URL to redirect to after sign in process completes
-  // This will send them straight to the Command Center
-  return NextResponse.redirect(new URL('/dashboard', request.url));
+  // Add cache-busting to force dashboard to refetch profile
+  return NextResponse.redirect(new URL('/dashboard?t=' + Date.now(), request.url));
 }
