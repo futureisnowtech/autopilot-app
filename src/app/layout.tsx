@@ -37,6 +37,9 @@ export const metadata: Metadata = {
     title: 'Autopilot',
   },
   manifest: '/manifest.json',
+  verification: {
+    google: 'HIVD4KORBry0-lExLX4CjXQJ8Nn-2Jw71GzbnBHNda0',
+  },
 };
 
 export default function RootLayout({
