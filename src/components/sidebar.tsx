@@ -91,18 +91,17 @@ export default function Sidebar() {
     }
   };
 
-  const handleSaveSync = async (provider: CalendarProvider, email?: string) => {
+  const handleSaveSync = async (provider: CalendarProvider, email: string) => {
     if (!userId) return;
     setIsSaving(true);
 
-    const updatePayload: Record<string, any> = { calendar_provider: provider };
-    if (email) {
-      updatePayload.calendar_email = email;
-    }
-
     const { error } = await supabase
       .from('profiles')
-      .update(updatePayload)
+      .update({
+        calendar_provider: provider,
+        calendar_email: email,
+        google_calendar_id: 'primary'
+      })
       .eq('id', userId);
 
     setIsSaving(false);
@@ -112,9 +111,8 @@ export default function Sidebar() {
       setIsSynced(true);
       setCalendarProvider(provider);
       setShowSyncModal(false);
-      const providerName = provider === 'google' ? 'Google Calendar' : provider === 'apple' ? 'Apple Calendar' : 'Outlook Calendar';
-      toast.success(`${providerName} Connected`, {
-        description: 'Your tasks will appear in your calendar via live feed subscription.'
+      toast.success('Google Calendar Connected', {
+        description: 'Autopilot will now automatically push events to your calendar in real-time.'
       });
     }
   };
@@ -195,13 +193,7 @@ export default function Sidebar() {
             >
               <Calendar className="w-6 h-6" />
               <span className="font-bold text-lg tracking-tight text-left">
-                {isSynced
-                  ? calendarProvider === 'apple'
-                    ? 'Apple Calendar'
-                    : calendarProvider === 'outlook'
-                    ? 'Outlook Calendar'
-                    : 'Google Calendar'
-                  : 'Sync Calendar'}
+                {isSynced ? 'Google Calendar' : 'Sync Calendar'}
               </span>
             </button>
           </div>
@@ -230,7 +222,6 @@ export default function Sidebar() {
       <AnimatePresence>
         {showSyncModal && (
           <CalendarSyncModal
-            icalFeedUrl={userId ? `${typeof window !== 'undefined' ? window.location.origin : ''}/api/calendar/${userId}` : '...'}
             onSave={handleSaveSync}
             onClose={() => setShowSyncModal(false)}
             isSaving={isSaving}

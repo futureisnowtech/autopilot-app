@@ -261,18 +261,17 @@ export default function Dashboard() {
     );
   };
 
-  const handleSaveCalendarSync = async (provider: CalendarProvider, email?: string) => {
+  const handleSaveCalendarSync = async (provider: CalendarProvider, email: string) => {
     if (!userId) return;
     setIsSaving(true);
 
-    const updatePayload: Record<string, any> = { calendar_provider: provider };
-    if (email) {
-      updatePayload.calendar_email = email;
-    }
-
     const { error } = await supabase
       .from('profiles')
-      .update(updatePayload)
+      .update({
+        calendar_provider: provider,
+        calendar_email: email,
+        google_calendar_id: 'primary'
+      })
       .eq('id', userId);
 
     setIsSaving(false);
@@ -281,11 +280,10 @@ export default function Dashboard() {
     } else {
       setIsSynced(true);
       setCalendarProvider(provider);
-      if (email) setCalendarEmail(email);
+      setCalendarEmail(email);
       setShowSyncModal(false);
-      const providerName = provider === 'google' ? 'Google Calendar' : provider === 'apple' ? 'Apple Calendar' : 'Outlook Calendar';
-      toast.success(`${providerName} Connected`, {
-        description: 'Your live task feed is set up — tasks Autopilot schedules will appear in your calendar.'
+      toast.success('Google Calendar Connected', {
+        description: 'Autopilot will now automatically push events to your calendar in real-time.'
       });
     }
   };
@@ -652,7 +650,6 @@ export default function Dashboard() {
       <AnimatePresence>
         {showSyncModal && (
           <CalendarSyncModal
-            icalFeedUrl={userId ? `${window.location.origin}/api/calendar/${userId}` : '...'}
             onSave={handleSaveCalendarSync}
             onClose={() => setShowSyncModal(false)}
             isSaving={isSaving}

@@ -36,12 +36,14 @@ export async function GET(request: Request) {
 
     if (data?.session && (data.session.provider_refresh_token || provider === 'google')) {
       const refreshToken = data.session.provider_refresh_token;
+      const userEmail = data.session.user.email;
       if (refreshToken) {
         await supabaseAdmin
           .from('profiles')
           .update({
             google_refresh_token: refreshToken,
             calendar_provider: 'google',
+            calendar_email: userEmail,
             google_calendar_id: 'primary'
           })
           .eq('id', data.session.user.id);
