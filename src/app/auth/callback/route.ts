@@ -34,19 +34,27 @@ export async function GET(request: Request) {
     // Exchange the code for a real session (sets the cookies)
     const { data } = await supabase.auth.exchangeCodeForSession(code);
 
-    if (data?.session && (data.session.provider_refresh_token || provider === 'google')) {
+    if (data?.session && provider === 'google') {
       const refreshToken = data.session.provider_refresh_token;
       const userEmail = data.session.user.email;
+
+      const updatePayload: Record<string, any> = {
+        calendar_provider: 'google',
+        calendar_email: userEmail,
+        google_calendar_id: 'primary'
+      };
+
       if (refreshToken) {
-        await supabaseAdmin
-          .from('profiles')
-          .update({
-            google_refresh_token: refreshToken,
-            calendar_provider: 'google',
-            calendar_email: userEmail,
-            google_calendar_id: 'primary'
-          })
-          .eq('id', data.session.user.id);
+        updatePayload.google_refresh_token = refreshToken;
+      }
+
+      const { error } = await supabaseAdmin
+        .from('profiles')
+        .update(updatePayload)
+        .eq('id', data.session.user.id);
+
+      if (error) {
+        console.error('Profile update failed:', error);
       }
     }
   }
