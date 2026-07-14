@@ -34,7 +34,12 @@ export default function CalendarSyncModal({
   const handleGoogleOAuth = async () => {
     setIsConnecting(true);
     try {
-      const { error } = await supabase.auth.linkIdentity({
+      // Use signInWithOAuth (not linkIdentity) to authorize calendar access.
+      // linkIdentity requires Manual Linking to be enabled and fails with
+      // identity_already_exists when the Google email already maps to an
+      // identity — the common case here. signInWithOAuth auto-links on a
+      // matching verified email and reliably returns a provider refresh token.
+      const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
           redirectTo: `${window.location.origin}/auth/callback?provider=google`,

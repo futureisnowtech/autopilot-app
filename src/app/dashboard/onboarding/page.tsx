@@ -62,14 +62,44 @@ export default function OnboardingPage() {
     getProfile();
   }, [userId]);
 
+  // Handle the return trip from the Google OAuth callback. Without this, a user
+  // who connected mid-onboarding lands back on step 1 with no feedback.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const syncError = params.get('sync_error');
+    const syncWarning = params.get('sync_warning');
+    const sync = params.get('sync');
+
+    if (syncError) {
+      toast.error('Google Calendar connection failed', { description: syncError });
+      setStep(3);
+    } else if (syncWarning === 'no_refresh_token') {
+      toast.error('Connected, but no calendar permission was granted', {
+        description: 'Please connect again and tap "Allow" on the calendar screen.',
+      });
+      setStep(3);
+    } else if (sync === 'success') {
+      setIsGoogleConnected(true);
+      setStep(3);
+      toast.success('Google Calendar connected');
+    }
+
+    // Strip the query params so refreshes don't re-fire the toast.
+    if (syncError || syncWarning || sync) {
+      window.history.replaceState({}, '', '/dashboard/onboarding');
+    }
+  }, []);
+
   const handleConnectGoogleOAuth = async () => {
     setIsOAuthConnecting(true);
     try {
-      const { error } = await supabase.auth.linkIdentity({
+      // signInWithOAuth (not linkIdentity): auto-links on matching verified
+      // email and reliably returns a refresh token. See callback route.
+      const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
           redirectTo: `${window.location.origin}/auth/callback?provider=google`,
-          scopes: 'https://www.googleapis.com/auth/calendar.events',
+          scopes: 'https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/userinfo.email',
           queryParams: {
             access_type: 'offline',
             prompt: 'consent',

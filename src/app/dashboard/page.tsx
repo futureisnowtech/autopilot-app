@@ -95,6 +95,30 @@ export default function Dashboard() {
     }
   }, []);
 
+  // Surface the result of the Google OAuth calendar-sync round trip.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const syncError = params.get('sync_error');
+    const syncWarning = params.get('sync_warning');
+    const sync = params.get('sync');
+
+    if (syncError) {
+      toast.error('Google Calendar connection failed', { description: syncError });
+    } else if (syncWarning === 'no_refresh_token') {
+      toast.error('Connected, but no calendar permission was granted', {
+        description: 'Please connect again and tap "Allow" on the calendar screen.',
+      });
+    } else if (sync === 'success') {
+      toast.success('Google Calendar connected', {
+        description: 'Autopilot will now push events to your calendar.',
+      });
+    }
+
+    if (syncError || syncWarning || sync) {
+      window.history.replaceState({}, '', '/dashboard');
+    }
+  }, []);
+
   // Fetch session, profile and tasks
   useEffect(() => {
     async function init() {
