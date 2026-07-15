@@ -4,7 +4,7 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 
 export async function parseTaskWithAI(input: string, context?: string, plan: string = 'free') {
   // Use Flash for free, Pro for paid
-  const modelName = plan === 'free' ? "gemini-1.5-flash" : "gemini-1.5-pro";
+  const modelName = plan === 'free' ? "gemini-2.5-flash" : "gemini-2.5-pro";
   const model = genAI.getGenerativeModel({ model: modelName });
 
   const prompt = `
@@ -38,7 +38,7 @@ export async function parseTaskWithAI(input: string, context?: string, plan: str
 }
 
 export async function getExecutionPlan(task: any, styleGuide?: string, plan: string = 'free') {
-  const modelName = plan === 'free' ? "gemini-1.5-flash" : "gemini-1.5-pro";
+  const modelName = plan === 'free' ? "gemini-2.5-flash" : "gemini-2.5-pro";
   const model = genAI.getGenerativeModel({ model: modelName });
 
   const prompt = `

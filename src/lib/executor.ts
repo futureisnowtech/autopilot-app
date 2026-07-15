@@ -50,7 +50,7 @@ export async function executeAiDoTask(taskId: string) {
     `;
 
     // 3. Execution (Gemini for all, Pro for Paid)
-    const modelName = profile.plan_type === 'free' ? "gemini-1.5-flash" : "gemini-1.5-pro";
+    const modelName = profile.plan_type === 'free' ? "gemini-2.5-flash" : "gemini-2.5-pro";
     const model = genAI.getGenerativeModel({ model: modelName });
     const result = await model.generateContent(prompt);
     const output = result.response.text();
@@ -106,7 +106,7 @@ export async function learnFromCompletedTask(taskId: string) {
       Keep it to 1 sentence.
     `;
 
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
     const result = await model.generateContent(prompt);
     const learning = result.response.text().trim();
 
