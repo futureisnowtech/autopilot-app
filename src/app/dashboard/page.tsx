@@ -23,6 +23,7 @@ import {
   MessageCircleQuestion
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import Link from 'next/link';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -376,10 +377,21 @@ export default function Dashboard() {
             {credits} Credits
           </Button>
           
-          <Button 
-            onClick={handleSignOut} 
-            variant="ghost" 
-            size="icon" 
+          <Link href="/dashboard/settings">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="w-11 h-11 rounded-full hover:bg-white/5 text-slate-500 hover:text-white"
+              title="Account settings"
+            >
+              <Settings className="w-5 h-5" />
+            </Button>
+          </Link>
+
+          <Button
+            onClick={handleSignOut}
+            variant="ghost"
+            size="icon"
             className="w-11 h-11 rounded-full hover:bg-white/5 text-slate-500 hover:text-white"
             title="Sign out"
           >
