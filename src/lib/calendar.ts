@@ -1,6 +1,46 @@
 import { google } from 'googleapis';
 
 /**
+ * Vercel env vars have twice now been stored with stray whitespace/newlines
+ * baked in (GOOGLE_CLIENT_ID had a trailing "\n", which Google's OAuth
+ * token endpoint rejects outright as invalid_client - no error until a real
+ * token exchange happens, so this fails silently deep inside calendar sync).
+ * Every credential read from process.env goes through this so a corrupted
+ * env var can't silently break auth again.
+ */
+function cleanEnv(value: string | undefined): string | undefined {
+  return value?.trim();
+}
+
+/**
+ * Builds the Calendar API auth client: a user's OAuth2 refresh token if
+ * present (legacy per-user consent flow), otherwise the shared Service
+ * Account. Throws if neither is configured so callers get a clear error
+ * instead of a mysterious downstream 401.
+ */
+function getCalendarAuth(refreshToken?: string): any {
+  if (refreshToken) {
+    const oauth2Client = new google.auth.OAuth2(
+      cleanEnv(process.env.GOOGLE_CLIENT_ID),
+      cleanEnv(process.env.GOOGLE_CLIENT_SECRET)
+    );
+    oauth2Client.setCredentials({ refresh_token: refreshToken });
+    return oauth2Client;
+  }
+
+  const clientEmail = cleanEnv(process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL);
+  const privateKey = cleanEnv(process.env.GOOGLE_PRIVATE_KEY)?.replace(/\\n/g, '\n');
+  if (!clientEmail || !privateKey) {
+    throw new Error('Calendar credentials not configured');
+  }
+
+  return new google.auth.GoogleAuth({
+    credentials: { client_email: clientEmail, private_key: privateKey },
+    scopes: ['https://www.googleapis.com/auth/calendar.events'],
+  });
+}
+
+/**
  * Pushes a task directly to the user's Google Calendar using a Service Account.
  * Requires GOOGLE_SERVICE_ACCOUNT_EMAIL and GOOGLE_PRIVATE_KEY in environment.
  */
@@ -13,30 +53,7 @@ export async function pushToGoogleCalendar(
   refreshToken?: string
 ) {
   try {
-    let auth: any;
-    if (refreshToken) {
-      const oauth2Client = new google.auth.OAuth2(
-        process.env.GOOGLE_CLIENT_ID,
-        process.env.GOOGLE_CLIENT_SECRET
-      );
-      oauth2Client.setCredentials({
-        refresh_token: refreshToken,
-      });
-      auth = oauth2Client;
-    } else {
-      if (!process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || !process.env.GOOGLE_PRIVATE_KEY) {
-        console.warn('Google Calendar credentials not configured. Skipping calendar sync.');
-        return { success: false, error: 'Calendar credentials not configured' };
-      }
-      auth = new google.auth.GoogleAuth({
-        credentials: {
-          client_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
-          private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-        },
-        scopes: ['https://www.googleapis.com/auth/calendar.events'],
-      });
-    }
-
+    const auth = getCalendarAuth(refreshToken);
     const calendar = google.calendar({ version: 'v3', auth });
 
     const event = {
@@ -152,32 +169,9 @@ export async function findAvailableSlot(
   refreshToken?: string
 ): Promise<{ start: Date; end: Date }> {
   try {
-    let auth: any;
-    if (refreshToken) {
-      const oauth2Client = new google.auth.OAuth2(
-        process.env.GOOGLE_CLIENT_ID,
-        process.env.GOOGLE_CLIENT_SECRET
-      );
-      oauth2Client.setCredentials({
-        refresh_token: refreshToken,
-      });
-      auth = oauth2Client;
-    } else {
-      if (!process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || !process.env.GOOGLE_PRIVATE_KEY) {
-        throw new Error('Calendar credentials not configured');
-      }
-      auth = new google.auth.GoogleAuth({
-        credentials: {
-          client_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
-          private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-        },
-        scopes: ['https://www.googleapis.com/auth/calendar.events'],
-      });
-    }
-
+    const auth = getCalendarAuth(refreshToken);
     const calendar = google.calendar({ version: 'v3', auth });
 
-    
     const now = new Date();
     const timeMin = now.toISOString();
     const timeMax = new Date(now.getTime() + 10 * 24 * 60 * 60 * 1000).toISOString();
@@ -302,26 +296,7 @@ export async function deleteFromGoogleCalendar(
   refreshToken?: string
 ) {
   try {
-    let auth: any;
-    if (refreshToken) {
-      const oauth2Client = new google.auth.OAuth2(
-        process.env.GOOGLE_CLIENT_ID,
-        process.env.GOOGLE_CLIENT_SECRET
-      );
-      oauth2Client.setCredentials({
-        refresh_token: refreshToken,
-      });
-      auth = oauth2Client;
-    } else {
-      auth = new google.auth.GoogleAuth({
-        credentials: {
-          client_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
-          private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-        },
-        scopes: ['https://www.googleapis.com/auth/calendar.events'],
-      });
-    }
-
+    const auth = getCalendarAuth(refreshToken);
     const calendar = google.calendar({ version: 'v3', auth });
     await calendar.events.delete({
       calendarId,
