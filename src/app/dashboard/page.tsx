@@ -19,7 +19,8 @@ import {
   Copy,
   ExternalLink,
   Keyboard,
-  Settings
+  Settings,
+  MessageCircleQuestion
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardContent } from '@/components/ui/card';
@@ -29,6 +30,7 @@ import { supabase } from '@/lib/supabase';
 import { Task } from '@/types/database';
 import { toast } from "sonner";
 import CalendarSyncModal, { CalendarProvider } from '@/components/calendar-sync-modal';
+import AskAboutCalendarModal from '@/components/ask-about-calendar-modal';
 
 export default function Dashboard() {
   const [userName, setUserName] = useState<string>('Founder');
@@ -37,6 +39,7 @@ export default function Dashboard() {
   const [planType, setPlanType] = useState<string>('free');
   const [isSynced, setIsSynced] = useState(false);
   const [showSyncModal, setShowSyncModal] = useState(false);
+  const [showAskModal, setShowAskModal] = useState(false);
   const [calendarProvider, setCalendarProvider] = useState<CalendarProvider>('google');
   const [calendarEmail, setCalendarEmail] = useState<string>('');
   const [userEmail, setUserEmail] = useState<string>('');
@@ -47,9 +50,7 @@ export default function Dashboard() {
   // Intake UI states
   const [inputType, setInputType] = useState<'voice' | 'text'>('voice');
   const [textInput, setTextInput] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [statusMessage, setStatusMessage] = useState('');
-  
+
   // Voice recording states
   const [isRecording, setIsRecording] = useState(false);
   const [transcript, setTranscript] = useState('');
@@ -217,52 +218,59 @@ export default function Dashboard() {
     }
   };
 
-  // Submit voice/text note to API
-  const handleIntakeSubmit = async (inputStr: string) => {
+  // Submit voice/text note to API. Feedback is optimistic: the input clears
+  // and a "Logged" toast appears immediately, before the AI parse or
+  // calendar push have even started. The actual result (real title, real
+  // scheduled time) fills in via the same toast a few seconds later, and
+  // never blocks the user from logging the next thing in the meantime.
+  const handleIntakeSubmit = (inputStr: string) => {
     if (!requireCalendarSync()) return;
     const finalInput = inputStr.trim();
     if (!finalInput || !userId) return;
 
-    setIsSubmitting(true);
-    setSuccessTask(null);
-    setStatusMessage('AI parsing note context...');
+    setTextInput('');
+    setTranscript('');
 
-    try {
-      // Step messages to make it feel responsive and magical
-      setTimeout(() => setStatusMessage('Analyzing schedule gaps...'), 1000);
-      setTimeout(() => setStatusMessage(isSynced ? 'Pushing to your calendar...' : 'Saving to backlog...'), 2000);
+    const toastId = toast.success('Logged!', { description: 'Scheduling it now…' });
 
-      const response = await fetch('/api/intake', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: finalInput }),
-      });
-      
-      const result = await response.json();
-      
-      if (response.ok && result.success) {
+    fetch('/api/intake', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: finalInput }),
+    })
+      .then(async (response) => {
+        const result = await response.json();
+        if (!response.ok || !result.success) {
+          throw new Error(result.error || 'Capture failed');
+        }
+
         setSuccessTask(result.task);
-        setShowAiInsights(true);
-        setTextInput('');
-        setTranscript('');
-        
-        toast.success("Synchronized successfully!", {
-          description: result.calendar_synced 
-            ? "Event created on Google Calendar" 
-            : "Task saved to backlog (Connect calendar to auto-sync)"
-        });
+        setShowAiInsights(false);
 
-        // Refresh feed
+        const when = result.task?.scheduled_start
+          ? new Date(result.task.scheduled_start).toLocaleString(undefined, {
+              weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
+            })
+          : null;
+
+        toast.success(
+          when ? `Scheduled: ${result.task.title}` : `Logged: ${result.task.title}`,
+          {
+            id: toastId,
+            description: when
+              ? `on ${when}`
+              : (result.calendar_synced ? 'Event created on Google Calendar' : 'Saved to backlog — connect calendar to auto-sync'),
+          }
+        );
+
         fetchRecentTasks(userId);
-      } else {
-        throw new Error(result.error || "Capture failed");
-      }
-    } catch (err: any) {
-      toast.error(err.message || "Failed to process intake note");
-    } finally {
-      setIsSubmitting(false);
-      setStatusMessage('');
-    }
+      })
+      .catch((err: any) => {
+        toast.error(`Couldn't schedule "${finalInput}"`, {
+          id: toastId,
+          description: err.message || 'Please try logging it again.',
+        });
+      });
   };
 
   // Cancel or delete task
@@ -411,26 +419,17 @@ export default function Dashboard() {
               </button>
             </div>
 
-            {/* Submitting Status View */}
+            <div className="flex justify-center">
+              <button
+                onClick={() => { if (!requireCalendarSync()) return; setShowAskModal(true); }}
+                className="px-4 py-2 text-xs font-semibold text-slate-500 hover:text-indigo-400 flex items-center gap-1.5 transition-colors"
+              >
+                <MessageCircleQuestion className="w-3.5 h-3.5" /> Ask About Calendar
+              </button>
+            </div>
+
             <AnimatePresence mode="wait">
-              {isSubmitting ? (
-                <motion.div 
-                  key="submitting"
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.95 }}
-                  className="py-12 flex flex-col items-center justify-center space-y-6"
-                >
-                  <div className="relative">
-                    <div className="w-20 h-20 rounded-full border-4 border-indigo-500/10 border-t-indigo-500 animate-spin flex items-center justify-center" />
-                    <Sparkles className="absolute inset-0 m-auto w-8 h-8 text-indigo-400 animate-pulse" />
-                  </div>
-                  <div className="text-center">
-                    <p className="text-xl font-bold uppercase tracking-widest text-indigo-400 animate-pulse">Autopilot Active</p>
-                    <p className="text-sm text-slate-400 font-medium mt-1">{statusMessage}</p>
-                  </div>
-                </motion.div>
-              ) : inputType === 'voice' ? (
+              {inputType === 'voice' ? (
                 /* Voice Interface */
                 <motion.div 
                   key="voice-mode"
@@ -679,6 +678,13 @@ export default function Dashboard() {
             onClose={() => setShowSyncModal(false)}
             isSaving={isSaving}
           />
+        )}
+      </AnimatePresence>
+
+      {/* Ask About Calendar Modal */}
+      <AnimatePresence>
+        {showAskModal && (
+          <AskAboutCalendarModal onClose={() => setShowAskModal(false)} />
         )}
       </AnimatePresence>
 

@@ -85,6 +85,46 @@ export async function pushToGoogleCalendar(
 }
 
 /**
+ * Read-only fetch of upcoming calendar events, for surfaces (like "Ask About
+ * Calendar") that need to answer questions about the user's schedule without
+ * rendering a calendar UI. Includes events Autopilot never created itself
+ * (meetings, other invites), so answers reflect the real calendar, not just
+ * our own tasks table.
+ */
+export async function listUpcomingEvents(
+  calendarId: string,
+  daysAhead: number = 14,
+  refreshToken?: string
+): Promise<{ summary: string; start: string; end: string }[]> {
+  try {
+    const auth = getCalendarAuth(refreshToken);
+    const calendar = google.calendar({ version: 'v3', auth });
+
+    const now = new Date();
+    const res = await calendar.events.list({
+      calendarId,
+      timeMin: now.toISOString(),
+      timeMax: new Date(now.getTime() + daysAhead * 24 * 60 * 60 * 1000).toISOString(),
+      singleEvents: true,
+      orderBy: 'startTime',
+      maxResults: 100,
+    });
+
+    return (res.data.items || [])
+      .map((event) => {
+        const start = event.start?.dateTime || event.start?.date;
+        const end = event.end?.dateTime || event.end?.date;
+        if (!start || !end) return null;
+        return { summary: event.summary || '(untitled event)', start, end };
+      })
+      .filter((e): e is { summary: string; start: string; end: string } => e !== null);
+  } catch (error: any) {
+    console.error('listUpcomingEvents Error:', error);
+    return [];
+  }
+}
+
+/**
  * Timezone helpers to safely get calendar segments in the user's local timezone.
  */
 function getPartsInTimezone(date: Date, timeZone: string) {
