@@ -37,16 +37,15 @@ export default function Sidebar() {
         setUserId(session.user.id);
         setUserName(session.user.user_metadata.full_name || session.user.email?.split('@')[0] || 'Founder');
         
-        // Fetch profile data
+        // Fetch profile data. google_calendar_id is only set once a real
+        // refresh token is captured, so it's the honest "connected" signal —
+        // calendar_provider is set for everyone and does not mean connected.
         const { data: profile } = await supabase
           .from('profiles')
-          .select('google_calendar_id, calendar_provider')
+          .select('google_calendar_id')
           .eq('id', session.user.id)
           .single();
-        if (profile?.calendar_provider) {
-          setCalendarProvider(profile.calendar_provider as CalendarProvider);
-          setIsSynced(true);
-        } else if (profile?.google_calendar_id) {
+        if (profile?.google_calendar_id) {
           setCalendarProvider('google');
           setIsSynced(true);
         }

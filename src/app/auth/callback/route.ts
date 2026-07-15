@@ -87,20 +87,28 @@ export async function GET(request: Request) {
     const refreshToken = data.session.provider_refresh_token;
     const userEmail = data.session.user.email;
 
-    const updatePayload: Record<string, any> = {
-      calendar_provider: 'google',
-      calendar_email: userEmail,
-      google_calendar_id: 'primary',
-    };
-
-    // Only present on the first consent (access_type=offline & prompt=consent).
-    if (refreshToken) {
-      updatePayload.google_refresh_token = refreshToken;
+    // Without a refresh token we cannot push events to the calendar later, so
+    // we must NOT mark the account as connected (google_calendar_id stays
+    // unset — that's the signal the rest of the app keys off). This happens
+    // when Google skips re-consent for an already-authorized account; the user
+    // needs to retry (we force prompt=consent, which normally fixes it).
+    if (!refreshToken) {
+      console.error('OAuth succeeded but no provider_refresh_token returned for', userId);
+      await supabaseAdmin
+        .from('profiles')
+        .update({ calendar_email: userEmail })
+        .eq('id', userId);
+      return redirectTo(`${destination}?sync_warning=no_refresh_token`);
     }
 
     const { error: updateError } = await supabaseAdmin
       .from('profiles')
-      .update(updatePayload)
+      .update({
+        calendar_provider: 'google',
+        calendar_email: userEmail,
+        google_calendar_id: 'primary',
+        google_refresh_token: refreshToken,
+      })
       .eq('id', userId);
 
     if (updateError) {
@@ -108,13 +116,6 @@ export async function GET(request: Request) {
       return redirectTo(
         `${destination}?sync_error=${encodeURIComponent(updateError.message)}`
       );
-    }
-
-    // If Google didn't hand back a refresh token, we can't push events later.
-    // Flag it so the user can retry with prompt=consent instead of silently
-    // "connecting" but never syncing.
-    if (!refreshToken) {
-      return redirectTo(`${destination}?sync_warning=no_refresh_token`);
     }
   }
 

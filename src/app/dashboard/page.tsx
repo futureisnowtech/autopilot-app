@@ -142,12 +142,13 @@ export default function Dashboard() {
           }
           setCredits(profile.credits);
           setPlanType(profile.plan_type);
-          if (profile.calendar_provider) {
-            setCalendarProvider(profile.calendar_provider as CalendarProvider);
-            setCalendarEmail(profile.calendar_email || '');
-            setIsSynced(true);
-          } else if (profile.google_calendar_id) {
+          // "Connected" means we actually have a calendar to push to.
+          // google_calendar_id is only set once a real refresh token is
+          // captured, so it's the honest signal — calendar_provider alone is
+          // set for everyone and does NOT mean a working connection.
+          if (profile.google_calendar_id) {
             setCalendarProvider('google');
+            setCalendarEmail(profile.calendar_email || '');
             setIsSynced(true);
           }
 

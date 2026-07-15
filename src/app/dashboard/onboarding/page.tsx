@@ -52,10 +52,12 @@ export default function OnboardingPage() {
       if (!userId) return;
       const { data: profile } = await supabase
         .from('profiles')
-        .select('google_refresh_token, calendar_provider')
+        .select('google_calendar_id')
         .eq('id', userId)
         .single();
-      if (profile?.google_refresh_token || profile?.calendar_provider) {
+      // google_calendar_id is only set once a real refresh token is captured,
+      // so it's the honest "connected" signal (calendar_provider is not).
+      if (profile?.google_calendar_id) {
         setIsGoogleConnected(true);
       }
     }
