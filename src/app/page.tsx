@@ -30,18 +30,19 @@ export default function LandingPage() {
         <div className="max-w-4xl mx-auto text-center">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-xs font-semibold mb-8">
             <Zap className="w-3 h-3" />
-            <span>Introducing Autopilot v8 "God Mode"</span>
+            <span>Built for busy humans, not power users</span>
           </div>
-          
+
           <h1 className="text-6xl md:text-8xl font-bold tracking-tight mb-8 bg-gradient-to-b from-white to-slate-400 bg-clip-text text-transparent">
-            Your life on <br />
-            <span className="text-indigo-500">autonomous</span> mode.
+            Just say it. <br />
+            <span className="text-indigo-500">We'll find the time.</span>
           </h1>
-          
+
           <p className="text-xl text-slate-400 mb-12 max-w-2xl mx-auto leading-relaxed">
-            The elite AI operating system for busy founders. 
-            Capture thoughts, automate tasks, and schedule your entire life 
-            without lifting a finger.
+            For everyone with too much in their head — the busy founder and the busy
+            Tuesday alike. Text it, say it, screenshot it. Autopilot finds where it
+            fits on your calendar and books it. No boards to build. No workflows to
+            learn. No dashboard to babysit.
           </p>
 
           <div className="flex flex-col md:flex-row items-center justify-center gap-4">
@@ -54,20 +55,20 @@ export default function LandingPage() {
 
         {/* Feature Grid */}
         <div className="max-w-7xl mx-auto mt-40 grid grid-cols-1 md:grid-cols-3 gap-8">
-          <FeatureCard 
+          <FeatureCard
             icon={<Calendar className="w-6 h-6 text-indigo-400" />}
-            title="Smart Scheduling"
-            description="AI analyzes your workload and slots tasks into your Google Calendar perfectly. It even handles travel and buffer time."
+            title="It finds the time"
+            description="Tell it what needs to happen. Autopilot checks your real calendar, works around what's already there, and books it — travel and buffer time included."
           />
-          <FeatureCard 
+          <FeatureCard
             icon={<Target className="w-6 h-6 text-purple-400" />}
-            title="AI Execution"
-            description="Status 'AI_Do' isn't just a label. Our agents research, write, and deliver high-quality docs while you sleep."
+            title="It can just do it"
+            description="Some things don't need scheduling, they need doing. For those, Autopilot can research, write, and hand you a finished doc — no extra app, no extra step."
           />
-          <FeatureCard 
+          <FeatureCard
             icon={<Zap className="w-6 h-6 text-amber-400" />}
-            title="Voice Command"
-            description="Integrated with iOS Shortcuts. Speak your thoughts and watch them turn into organized, scheduled actions."
+            title="Talk to it like a person"
+            description="Voice note, text, or a screenshot of a group chat — say it however's easiest, and watch it turn into something scheduled."
           />
         </div>
       </main>
