@@ -1,6 +1,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { ArrowRight, Zap, Calendar, Target, Sparkles } from 'lucide-react';
+import AddToHomeScreenButton from '@/components/add-to-home-screen';
 
 export default function LandingPage() {
   return (
@@ -49,8 +50,9 @@ export default function LandingPage() {
             <Link href="/auth" className="w-full md:w-auto px-8 py-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-full font-bold text-lg flex items-center justify-center gap-2 transition-all shadow-lg shadow-indigo-500/20">
               Get Started Now <ArrowRight className="w-5 h-5" />
             </Link>
-            <p className="text-sm text-slate-500">Free forever for personal use.</p>
+            <AddToHomeScreenButton />
           </div>
+          <p className="text-sm text-slate-500 mt-6">Free forever for personal use.</p>
         </div>
 
         {/* Feature Grid */}
