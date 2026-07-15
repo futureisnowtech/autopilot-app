@@ -1,7 +1,5 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
 import { supabaseAdmin } from './supabase-admin';
-
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
+import { generateWithFallback } from './gemini';
 
 /**
  * The primary execution engine for AI DO tasks.
@@ -50,10 +48,8 @@ export async function executeAiDoTask(taskId: string) {
     `;
 
     // 3. Execution (Gemini for all, Pro for Paid)
-    const modelName = profile.plan_type === 'free' ? "gemini-2.5-flash" : "gemini-2.5-pro";
-    const model = genAI.getGenerativeModel({ model: modelName });
-    const result = await model.generateContent(prompt);
-    const output = result.response.text();
+    const tier = profile.plan_type === 'free' ? 'flash' : 'pro';
+    const output = await generateWithFallback(tier, prompt);
 
     // 4. Update task and deduct credit
     const { error: updateError } = await supabaseAdmin
@@ -106,9 +102,7 @@ export async function learnFromCompletedTask(taskId: string) {
       Keep it to 1 sentence.
     `;
 
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-    const result = await model.generateContent(prompt);
-    const learning = result.response.text().trim();
+    const learning = (await generateWithFallback('flash', prompt)).trim();
 
     if (learning) {
       const { data: styleGuide } = await supabaseAdmin

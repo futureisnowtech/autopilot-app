@@ -1,11 +1,8 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
-
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
+import { generateWithFallback } from "./gemini";
 
 export async function parseTaskWithAI(input: string, context?: string, plan: string = 'free') {
   // Use Flash for free, Pro for paid
-  const modelName = plan === 'free' ? "gemini-2.5-flash" : "gemini-2.5-pro";
-  const model = genAI.getGenerativeModel({ model: modelName });
+  const tier = plan === 'free' ? 'flash' : 'pro';
 
   const prompt = `
     You are an elite Chief of Staff. Extract task fields from the input.
@@ -29,17 +26,14 @@ export async function parseTaskWithAI(input: string, context?: string, plan: str
     }
   `;
 
-  const result = await model.generateContent(prompt);
-  const response = await result.response;
-  const text = response.text();
-  
+  const text = await generateWithFallback(tier, prompt);
+
   const jsonMatch = text.match(/\{[\s\S]*\}/);
   return JSON.parse(jsonMatch ? jsonMatch[0] : '{}');
 }
 
 export async function getExecutionPlan(task: any, styleGuide?: string, plan: string = 'free') {
-  const modelName = plan === 'free' ? "gemini-2.5-flash" : "gemini-2.5-pro";
-  const model = genAI.getGenerativeModel({ model: modelName });
+  const tier = plan === 'free' ? 'flash' : 'pro';
 
   const prompt = `
     You are an AI Planner. Analyze the task and delivery preferences.
@@ -57,9 +51,7 @@ export async function getExecutionPlan(task: any, styleGuide?: string, plan: str
     }
   `;
 
-  const result = await model.generateContent(prompt);
-  const response = await result.response;
-  const text = response.text();
+  const text = await generateWithFallback(tier, prompt);
   const jsonMatch = text.match(/\{[\s\S]*\}/);
   return JSON.parse(jsonMatch ? jsonMatch[0] : '{}');
 }
