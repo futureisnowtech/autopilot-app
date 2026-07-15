@@ -109,6 +109,7 @@ export default function Dashboard() {
         description: 'Please connect again and tap "Allow" on the calendar screen.',
       });
     } else if (sync === 'success') {
+      setIsSynced(true);
       toast.success('Google Calendar connected', {
         description: 'Autopilot will now push events to your calendar.',
       });
@@ -290,19 +291,14 @@ export default function Dashboard() {
     if (!userId) return;
     setIsSaving(true);
 
-    const { error } = await supabase
-      .from('profiles')
-      .update({
-        calendar_provider: provider,
-        calendar_email: email,
-        google_calendar_id: 'primary'
-      })
-      .eq('id', userId);
+    try {
+      const res = await fetch('/api/calendar/link-service', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ calendarId: email })
+      });
+      if (!res.ok) throw new Error('Failed to link calendar');
 
-    setIsSaving(false);
-    if (error) {
-      toast.error('Failed to save calendar settings');
-    } else {
       setIsSynced(true);
       setCalendarProvider(provider);
       setCalendarEmail(email);
@@ -310,6 +306,10 @@ export default function Dashboard() {
       toast.success('Google Calendar Connected', {
         description: 'Autopilot will now automatically push events to your calendar in real-time.'
       });
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to save calendar settings');
+    } finally {
+      setIsSaving(false);
     }
   };
 

@@ -7,7 +7,7 @@ import { getSupabaseConfig } from './lib/supabase-config'
  * Handles session validation and cookie synchronization.
  * See: https://nextjs.org/docs/messages/middleware-to-proxy
  */
-export async function proxy(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   let response = NextResponse.next({
     request: {
       headers: request.headers,

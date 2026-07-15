@@ -19,6 +19,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/lib/supabase';
 import { toast } from "sonner"
+import CalendarSyncModal from '@/components/calendar-sync-modal';
 
 export default function OnboardingPage() {
   const [step, setStep] = useState(1);
@@ -86,33 +87,15 @@ export default function OnboardingPage() {
       toast.success('Google Calendar connected');
     }
 
-    // Strip the query params so refreshes don't re-fire the toast.
     if (syncError || syncWarning || sync) {
       window.history.replaceState({}, '', '/dashboard/onboarding');
     }
   }, []);
 
+  const [showSyncModal, setShowSyncModal] = useState(false);
+
   const handleConnectGoogleOAuth = async () => {
-    setIsOAuthConnecting(true);
-    try {
-      // signInWithOAuth (not linkIdentity): auto-links on matching verified
-      // email and reliably returns a refresh token. See callback route.
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: `${window.location.origin}/auth/callback?provider=google`,
-          scopes: 'https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/userinfo.email',
-          queryParams: {
-            access_type: 'offline',
-            prompt: 'consent',
-          },
-        },
-      });
-      if (error) throw error;
-    } catch (err: any) {
-      toast.error(err.message || 'Failed to initiate Google Calendar link');
-      setIsOAuthConnecting(false);
-    }
+    setShowSyncModal(true);
   };
 
   const handleNext = () => setStep(s => s + 1);
@@ -146,10 +129,39 @@ export default function OnboardingPage() {
     }
   };
 
+  const handleSaveCalendar = async (provider: 'google', email: string) => {
+    setIsOAuthConnecting(true);
+    try {
+      const res = await fetch('/api/calendar/link-service', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ calendarId: email })
+      });
+      if (!res.ok) throw new Error('Failed to link calendar');
+      
+      setIsGoogleConnected(true);
+      setShowSyncModal(false);
+      toast.success('Calendar Linked Successfully!');
+    } catch (err: any) {
+      toast.error(err.message || 'Error linking calendar');
+    } finally {
+      setIsOAuthConnecting(false);
+    }
+  };
+
   const icalUrl = userId ? `${window.location.origin}/api/calendar/${userId}` : '...';
 
   return (
     <div className="min-h-screen bg-[#0d0d1f] text-white flex items-center justify-center px-6 py-20 selection:bg-indigo-500/30">
+      
+      {showSyncModal && (
+        <CalendarSyncModal
+          onSave={handleSaveCalendar}
+          onClose={() => setShowSyncModal(false)}
+          isSaving={isOAuthConnecting}
+        />
+      )}
+
       <div className="max-w-2xl w-full">
         {/* Progress Bar */}
         <div className="flex gap-2 mb-12">
