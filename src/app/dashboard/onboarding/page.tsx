@@ -315,10 +315,10 @@ export default function OnboardingPage() {
                       <div className="space-y-6">
                         <div className="p-6 bg-white/5 border border-white/10 rounded-3xl text-left space-y-4">
                           <p className="text-xl font-bold leading-relaxed">
-                            Sign in with your Google account to grant Autopilot access to automatically schedule events directly on your calendar.
+                            Share your calendar with Autopilot's bot account to let it automatically schedule events directly on your calendar.
                           </p>
                           <p className="text-base text-slate-400 leading-relaxed font-medium">
-                            No manual sharing, service accounts, or copying URLs required. Fully automated.
+                            Takes under a minute: copy the bot email, share your calendar with it, then confirm.
                           </p>
                         </div>
 
