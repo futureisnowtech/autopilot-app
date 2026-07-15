@@ -102,9 +102,14 @@ export default function CalendarSyncModal({
             <div className="bg-white/5 p-4 rounded-xl border border-white/10 space-y-4">
               <div>
                 <span className="text-xs text-slate-300 font-bold uppercase tracking-wider">Step 2: Share in Google</span>
-                <p className="text-xs text-slate-400 leading-relaxed mt-2">
-                  Go to your Google Calendar settings, find "Share with specific people or groups", paste the bot email, and grant <strong className="text-white">"Make changes to events"</strong> access.
-                </p>
+                <ol className="text-xs text-slate-400 leading-relaxed mt-2 space-y-1.5 list-decimal list-inside">
+                  <li>In the left sidebar under "My calendars", hover the calendar you want to share and click the <strong className="text-white">3-dot menu</strong> next to it.</li>
+                  <li>Click <strong className="text-white">Settings and sharing</strong>.</li>
+                  <li>Scroll to <strong className="text-white">Share with specific people or groups</strong>.</li>
+                  <li>Click <strong className="text-white">+ Add people and groups</strong> and paste the bot email above.</li>
+                  <li>Set permission to <strong className="text-white">"Make changes to events"</strong> — not "Make changes and manage sharing", which grants more access than needed.</li>
+                  <li>Click <strong className="text-white">Send</strong>.</li>
+                </ol>
               </div>
               <div className="relative group/btn">
                 <div className="absolute -inset-1 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-xl blur opacity-40 group-hover/btn:opacity-70 transition duration-300" />
