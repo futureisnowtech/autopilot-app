@@ -11,6 +11,10 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   // Prevent googleapis from being bundled client-side
   serverExternalPackages: ["googleapis"],
+  compress: true,
+  poweredByHeader: false,
+  reactStrictMode: true,
+  experimental: { optimizeCss: true },
 
   // Security headers on all routes
   async headers() {
@@ -18,6 +22,12 @@ const nextConfig: NextConfig = {
       {
         source: "/(.*)",
         headers: securityHeaders,
+      },
+      {
+        source: "/(.*)\\.(js|css|woff2|png|jpg|svg|ico)",
+        headers: [
+          { key: "Cache-Control", value: "public, max-age=31536000, immutable" },
+        ],
       },
     ];
   },

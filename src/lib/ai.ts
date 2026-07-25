@@ -5,7 +5,7 @@ export async function parseTaskWithAI(input: string, context?: string, plan: str
   const tier = plan === 'free' ? 'flash' : 'pro';
 
   const prompt = `
-    You are an elite Chief of Staff. Extract task fields from the input.
+    You are an elite Chief of Staff. Extract task fields from the input. Also generate 2-4 short actionable AI enhancement bullets (preparation tips, things to remember, suggested follow-ups, etc.) based on the input.
     Context: ${context || 'General task management'}
     Reference Time (Current): ${new Date().toISOString()}
     
@@ -22,14 +22,17 @@ export async function parseTaskWithAI(input: string, context?: string, plan: str
       "scheduled_start": "ISO8601 string if a specific time is mentioned, otherwise null",
       "scheduled_end": "ISO8601 string if duration is known, otherwise null",
       "notes": "Extra context",
-      "status": "Ready|AI_Do"
+      "status": "Ready|AI_Do",
+      "ai_bullets": ["short actionable bullet 1", "short actionable bullet 2"]
     }
   `;
 
   const text = await generateWithFallback(tier, prompt);
 
   const jsonMatch = text.match(/\{[\s\S]*\}/);
-  return JSON.parse(jsonMatch ? jsonMatch[0] : '{}');
+  const parsed = JSON.parse(jsonMatch ? jsonMatch[0] : '{}');
+  parsed.ai_bullets = parsed.ai_bullets || [];
+  return parsed;
 }
 
 export async function getExecutionPlan(task: any, styleGuide?: string, plan: string = 'free') {

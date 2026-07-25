@@ -41,22 +41,23 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Title is required' }, { status: 400 });
     }
 
-    // 0. Fetch Profile & Style Guide for context
-    const { data: profile } = await supabaseAdmin
-      .from('profiles')
-      .select('plan_type, credits, google_calendar_id, google_refresh_token, timezone, settings')
-      .eq('id', userId)
-      .single();
+    // 0. Fetch Profile & Style Guide in parallel for faster intake
+    const [{ data: profile }, { data: styleGuide }] = await Promise.all([
+      supabaseAdmin
+        .from('profiles')
+        .select('plan_type, credits, google_calendar_id, google_refresh_token, timezone, settings')
+        .eq('id', userId)
+        .single(),
+      supabaseAdmin
+        .from('style_guides')
+        .select('learned_rules')
+        .eq('user_id', userId)
+        .single(),
+    ]);
 
     if (!profile || profile.credits <= 0) {
       return NextResponse.json({ error: 'Insufficient credits. Please upgrade.' }, { status: 403 });
     }
-
-    const { data: styleGuide } = await supabaseAdmin
-      .from('style_guides')
-      .select('learned_rules')
-      .eq('user_id', userId)
-      .single();
     
     const styleContext = styleGuide?.learned_rules?.join('\n') || '';
 
@@ -66,6 +67,20 @@ export async function POST(req: Request) {
       styleContext,
       profile.plan_type
     );
+
+    // Preserve the raw user input and compose structured notes
+    const originalInput = title + (notes ? `\nNotes: ${notes}` : '');
+    const aiBullets = parsedTask.ai_bullets || [];
+    const structuredNotes = [
+      `📝 Original: ${originalInput}`,
+      '',
+      ...(aiBullets.length > 0 ? [
+        '🤖 AI Insights:',
+        ...aiBullets.map((b: string) => `• ${b}`),
+      ] : []),
+      ...(parsedTask.notes ? ['', `📋 Context: ${parsedTask.notes}`] : []),
+    ].join('\n');
+    parsedTask.notes = structuredNotes;
 
     // 1.1 Resolve Space & Project IDs
     let spaceId = null;
@@ -132,7 +147,7 @@ export async function POST(req: Request) {
           uploadedImages.push(uploadData.path);
         }
       }
-      parsedTask.notes = (parsedTask.notes || '') + `\n[${uploadedImages.length} image(s) uploaded to storage]`;
+      parsedTask.notes = (parsedTask.notes || '') + `\n\n[${uploadedImages.length} image(s) uploaded to storage]`;
     }
 
     // 3. Interactive Prompting Loop

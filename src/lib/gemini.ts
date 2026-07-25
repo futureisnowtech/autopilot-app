@@ -34,6 +34,19 @@ const CANDIDATES: Record<ModelTier, string[]> = {
 // in this process skip straight to it instead of re-probing the chain.
 const lastGoodModel: Partial<Record<ModelTier, string>> = {};
 
+// Pre-warmed model cache — avoids re-instantiating GenerativeModel objects on
+// every call, saving ~10-20ms per request from internal SDK setup.
+const modelCache = new Map<string, ReturnType<typeof genAI.getGenerativeModel>>();
+
+function getOrCreateModel(modelName: string) {
+  let model = modelCache.get(modelName);
+  if (!model) {
+    model = genAI.getGenerativeModel({ model: modelName });
+    modelCache.set(modelName, model);
+  }
+  return model;
+}
+
 function isModelUnavailableError(err: any): boolean {
   const msg = String(err?.message || err);
   return /404/.test(msg) || /is not found|no longer available|not supported for generateContent/i.test(msg);
@@ -54,7 +67,7 @@ export async function generateWithFallback(tier: ModelTier, prompt: string): Pro
   let lastError: any;
   for (const modelName of candidates) {
     try {
-      const model = genAI.getGenerativeModel({ model: modelName });
+      const model = getOrCreateModel(modelName);
       const result = await model.generateContent(prompt);
       lastGoodModel[tier] = modelName;
       return result.response.text();
