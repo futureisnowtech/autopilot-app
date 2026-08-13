@@ -35,6 +35,8 @@ import { toast } from "sonner";
 import CalendarSyncModal, { CalendarProvider } from '@/components/calendar-sync-modal';
 import AskAboutCalendarModal from '@/components/ask-about-calendar-modal';
 
+const creditsSeenKey = (uid: string) => `creditsModalSeen:${uid}`;
+
 export default function Dashboard() {
   const [userName, setUserName] = useState<string>('Founder');
   const [userId, setUserId] = useState<string | null>(null);
@@ -47,7 +49,6 @@ export default function Dashboard() {
   const [calendarEmail, setCalendarEmail] = useState<string>('');
   const [userEmail, setUserEmail] = useState<string>('');
   const [showCreditsModal, setShowCreditsModal] = useState(false);
-  const [creditsModalDismissed, setCreditsModalDismissed] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
   // Intake UI states
@@ -150,7 +151,7 @@ export default function Dashboard() {
         // Fetch profile
         const { data: profile } = await supabase
           .from('profiles')
-          .select('credits, plan_type, google_calendar_id, calendar_provider, calendar_email, onboarding_completed')
+          .select('credits, plan_type, google_calendar_id, calendar_provider, calendar_email, onboarding_completed, settings')
           .eq('id', session.user.id)
           .single();
 
@@ -171,11 +172,15 @@ export default function Dashboard() {
             setIsSynced(true);
           }
 
-          // Show credits modal once per session if not dismissed
-          if (!sessionStorage.getItem('creditsModalShown')) {
-            setShowCreditsModal(true);
-            sessionStorage.setItem('creditsModalShown', 'true');
-          }
+          // Show the credits explainer once per account, ever — not once per
+          // session. iOS wipes sessionStorage on every cold launch of a
+          // home-screen web app, so a session-scoped flag meant this popped up
+          // on every single open. The flag lives on the profile so it also
+          // holds across devices; localStorage is a same-device fast path so
+          // the modal never flashes while the profile write is in flight.
+          const seen = (profile.settings as any)?.credits_modal_seen === true
+            || localStorage.getItem(creditsSeenKey(session.user.id)) === 'true';
+          if (!seen) setShowCreditsModal(true);
         }
 
         fetchRecentTasks(session.user.id);
@@ -200,6 +205,22 @@ export default function Dashboard() {
     }
     setIsLoadingFeed(false);
   }
+
+  // Close the credits explainer and remember it, so it only ever auto-opens
+  // once. Re-opening it on purpose (the "N Credits" pill) still works.
+  const dismissCreditsModal = async () => {
+    setShowCreditsModal(false);
+    if (!userId) return;
+    localStorage.setItem(creditsSeenKey(userId), 'true');
+
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('settings')
+      .eq('id', userId)
+      .single();
+    const newSettings = { ...(profile?.settings || {}), credits_modal_seen: true };
+    await supabase.from('profiles').update({ settings: newSettings }).eq('id', userId);
+  };
 
   // Gate all note interactions behind calendar sync
   const requireCalendarSync = () => {
@@ -781,7 +802,7 @@ export default function Dashboard() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              onClick={() => setShowCreditsModal(false)}
+              onClick={dismissCreditsModal}
               className="absolute inset-0 bg-black/85 backdrop-blur-sm"
             />
             <motion.div
@@ -834,7 +855,7 @@ export default function Dashboard() {
                 </div>
 
                 <Button
-                  onClick={() => setShowCreditsModal(false)}
+                  onClick={dismissCreditsModal}
                   className="w-full h-11 bg-gradient-to-r from-indigo-700 to-indigo-600 hover:from-indigo-600 hover:to-indigo-500 text-white font-bold rounded-xl text-sm shadow-lg transition-all"
                 >
                   Got It

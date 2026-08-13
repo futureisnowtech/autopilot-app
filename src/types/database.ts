@@ -87,6 +87,7 @@ export interface UserProfile {
     work_weekends: boolean;
     daily_brief_time: string;
     tutorial_completed?: boolean;
+    credits_modal_seen?: boolean;
   };
 }
 
