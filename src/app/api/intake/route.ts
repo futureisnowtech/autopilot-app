@@ -55,8 +55,9 @@ export async function POST(req: Request) {
         .single(),
     ]);
 
-    if (!profile || profile.credits <= 0) {
-      return NextResponse.json({ error: 'Insufficient credits. Please upgrade.' }, { status: 403 });
+    const isUnlimitedPlan = ['pro', 'god-mode', 'scale'].includes(profile?.plan_type);
+    if (!profile || (!isUnlimitedPlan && profile.credits <= 0)) {
+      return NextResponse.json({ error: 'Insufficient credits. Please upgrade or top up.' }, { status: 403 });
     }
     
     const styleContext = styleGuide?.learned_rules?.join('\n') || '';

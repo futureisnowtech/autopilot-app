@@ -16,8 +16,9 @@ export async function executeAiDoTask(taskId: string) {
 
     if (taskError || !task) throw new Error('Task not found');
     const profile = Array.isArray(task.profiles) ? task.profiles[0] : task.profiles;
+    const isUnlimitedPlan = ['pro', 'god-mode', 'scale'].includes(profile?.plan_type);
 
-    if (!profile || profile.credits <= 0) {
+    if (!profile || (!isUnlimitedPlan && profile.credits <= 0)) {
       throw new Error('Insufficient credits. Please upgrade or top up.');
     }
 
@@ -63,11 +64,22 @@ export async function executeAiDoTask(taskId: string) {
 
     if (updateError) throw updateError;
 
-    // Deduct 1 credit
-    await supabaseAdmin
-      .from('profiles')
-      .update({ credits: profile.credits - 1 })
-      .eq('id', profile.id);
+    // Deduct 1 credit via atomic RPC
+    const { error: rpcError } = await supabaseAdmin.rpc('deduct_credit', {
+      p_user_id: profile.id,
+      p_amount: 1,
+      p_description: `AI DO Task Execution: ${task.title}`
+    });
+
+    if (rpcError) {
+      console.warn('Atomic RPC credit deduction warning:', rpcError.message);
+      if (!isUnlimitedPlan) {
+        await supabaseAdmin
+          .from('profiles')
+          .update({ credits: Math.max(0, (profile.credits || 1) - 1) })
+          .eq('id', profile.id);
+      }
+    }
 
     return { success: true, output };
 

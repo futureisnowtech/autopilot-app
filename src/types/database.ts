@@ -80,7 +80,10 @@ export interface UserProfile {
   google_calendar_id?: string;
   onboarding_completed: boolean;
   credits: number;
-  plan_type: 'free' | 'god-mode';
+  plan_type: 'free' | 'pro' | 'god-mode' | 'scale';
+  stripe_customer_id?: string;
+  stripe_subscription_id?: string;
+  subscription_status?: string;
   settings: {
     primary_window: string;
     overflow_window: string;
@@ -89,6 +92,15 @@ export interface UserProfile {
     tutorial_completed?: boolean;
     credits_modal_seen?: boolean;
   };
+}
+
+export interface CreditTransaction {
+  id: string;
+  user_id: string;
+  amount: number;
+  description: string;
+  stripe_session_id?: string;
+  created_at: string;
 }
 
 export interface StyleGuide {

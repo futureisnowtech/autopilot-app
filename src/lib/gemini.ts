@@ -52,11 +52,29 @@ function isModelUnavailableError(err: any): boolean {
   return /404/.test(msg) || /is not found|no longer available|not supported for generateContent/i.test(msg);
 }
 
+// 503 (overloaded), 429 (rate limited) and 500 are transient — Google is
+// asking us to back off, not telling us the model is gone. Worth a couple of
+// quick retries before giving up on that candidate, since a brief demand
+// spike often clears in under a second.
+function isTransientError(err: any): boolean {
+  const msg = String(err?.message || err);
+  return /\[(429|500|503)\b/.test(msg) || /503|overloaded|high demand|Service Unavailable|rate limit/i.test(msg);
+}
+
+const RETRY_DELAYS_MS = [300, 900];
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 /**
  * Runs a prompt against the given tier, walking the fallback chain on any
- * "model unavailable" style error. Throws only if every candidate fails, or
- * on a non-availability error (bad prompt, auth, quota) which is surfaced
- * immediately rather than masked by a retry.
+ * "model unavailable" or transient (overloaded/rate-limited) error. Each
+ * candidate gets a couple of quick retries for transient errors before
+ * moving on — different model IDs often sit on different serving pools, so
+ * the next candidate may not be under the same load spike. Throws only if
+ * every candidate fails, or on a non-availability error (bad prompt, auth)
+ * which is surfaced immediately rather than masked by a retry.
  */
 export async function generateWithFallback(tier: ModelTier, prompt: string): Promise<string> {
   const known = lastGoodModel[tier];
@@ -66,18 +84,30 @@ export async function generateWithFallback(tier: ModelTier, prompt: string): Pro
 
   let lastError: any;
   for (const modelName of candidates) {
-    try {
-      const model = getOrCreateModel(modelName);
-      const result = await model.generateContent(prompt);
-      lastGoodModel[tier] = modelName;
-      return result.response.text();
-    } catch (err: any) {
-      lastError = err;
-      if (!isModelUnavailableError(err)) throw err;
-      console.warn(`Gemini model "${modelName}" (tier=${tier}) unavailable, trying next candidate:`, err.message);
-      if (lastGoodModel[tier] === modelName) delete lastGoodModel[tier];
+    const model = getOrCreateModel(modelName);
+
+    for (let attempt = 0; attempt <= RETRY_DELAYS_MS.length; attempt++) {
+      try {
+        const result = await model.generateContent(prompt);
+        lastGoodModel[tier] = modelName;
+        return result.response.text();
+      } catch (err: any) {
+        lastError = err;
+
+        if (isTransientError(err) && attempt < RETRY_DELAYS_MS.length) {
+          console.warn(`Gemini model "${modelName}" (tier=${tier}) transient error, retrying in ${RETRY_DELAYS_MS[attempt]}ms:`, err.message);
+          await sleep(RETRY_DELAYS_MS[attempt]);
+          continue;
+        }
+
+        if (!isModelUnavailableError(err) && !isTransientError(err)) throw err;
+
+        console.warn(`Gemini model "${modelName}" (tier=${tier}) unavailable, trying next candidate:`, err.message);
+        if (lastGoodModel[tier] === modelName) delete lastGoodModel[tier];
+        break;
+      }
     }
   }
 
-  throw new Error(`All Gemini ${tier} model candidates are unavailable. Last error: ${lastError?.message}`);
+  throw new Error(`All Gemini ${tier} model candidates are unavailable or overloaded right now. Please try again shortly. Last error: ${lastError?.message}`);
 }
