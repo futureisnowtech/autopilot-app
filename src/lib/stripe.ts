@@ -7,7 +7,7 @@ if (!process.env.STRIPE_SECRET_KEY) {
 export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_mock', {
   apiVersion: '2025-02-24.acacia' as any,
   appInfo: {
-    name: 'Autopilot Executive Assistant',
+    name: 'TaskMinder Executive Assistant',
     version: '1.0.0',
   },
 });

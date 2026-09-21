@@ -87,7 +87,7 @@ export async function pushToGoogleCalendar(
 /**
  * Read-only fetch of upcoming calendar events, for surfaces (like "Ask About
  * Calendar") that need to answer questions about the user's schedule without
- * rendering a calendar UI. Includes events Autopilot never created itself
+ * rendering a calendar UI. Includes events TaskMinder never created itself
  * (meetings, other invites), so answers reflect the real calendar, not just
  * our own tasks table.
  */

@@ -1,13 +1,13 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.autopilot.app',
-  appName: 'Autopilot',
+  appId: 'com.taskminder.app',
+  appName: 'TaskMinder',
   webDir: 'public',
   server: {
     // Hosted web app URL for dynamic SSR & API routes support
     // Set CAPACITOR_SERVER_URL environment variable to your deployed production domain
-    url: process.env.CAPACITOR_SERVER_URL || 'https://autopilot-app.vercel.app',
+    url: process.env.CAPACITOR_SERVER_URL || 'https://autopilot-app-ten.vercel.app',
     cleartext: false,
     androidScheme: 'https',
   },

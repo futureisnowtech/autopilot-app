@@ -55,7 +55,7 @@ export async function POST(req: Request) {
     const timezone = profile.timezone || 'America/New_York';
     const now = new Date();
 
-    // Our own tasks are the source of truth for anything Autopilot scheduled
+    // Our own tasks are the source of truth for anything TaskMinder scheduled
     // or is still holding onto (backlog, needs-info, etc).
     const { data: tasks } = await supabaseAdmin
       .from('tasks')
@@ -66,7 +66,7 @@ export async function POST(req: Request) {
       .limit(50);
 
     // Real calendar events too (meetings, invites) so the answer reflects the
-    // whole calendar, not just what Autopilot itself put there.
+    // whole calendar, not just what TaskMinder itself put there.
     const calendarEvents = profile.google_calendar_id || profile.google_refresh_token
       ? await listUpcomingEvents(
           profile.google_calendar_id || 'primary',
@@ -87,10 +87,10 @@ export async function POST(req: Request) {
       Current date/time: ${now.toISOString()}
       User's timezone: ${timezone}
 
-      TASKS AUTOPILOT IS TRACKING (JSON):
+      TASKS TASKMINDER IS TRACKING (JSON):
       ${JSON.stringify(tasks || [])}
 
-      CALENDAR EVENTS (JSON, includes things Autopilot did not create):
+      CALENDAR EVENTS (JSON, includes things TaskMinder did not create):
       ${JSON.stringify(calendarEvents)}
 
       USER'S REQUEST: ${question.trim()}

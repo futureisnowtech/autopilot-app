@@ -261,6 +261,24 @@ export async function POST(req: Request) {
 
     if (taskError) throw taskError;
 
+    // 4.1 Deduct 1 credit for this capture via atomic RPC (bypassed for
+    // unlimited plans server-side). Deducted after the task is saved, not
+    // before, so a Gemini/DB hiccup never costs the user a credit for
+    // nothing. The rare race where two rapid requests both pass the
+    // earlier soft check is still safe from going negative — deduct_credit
+    // does an atomic `credits >= amount` check in the same UPDATE.
+    let creditsRemaining: number | null = null;
+    const { data: deductResult, error: deductError } = await supabaseAdmin.rpc('deduct_credit', {
+      p_user_id: userId,
+      p_amount: 1,
+      p_description: `Task Capture: ${parsedTask.title}`,
+    });
+    if (deductError) {
+      console.warn('Credit deduction RPC warning:', deductError.message);
+    } else {
+      creditsRemaining = deductResult;
+    }
+
     // 5. Link attachments
     if (uploadedImages.length > 0 && task) {
       const attachmentRecords = uploadedImages.map(path => ({
@@ -275,7 +293,8 @@ export async function POST(req: Request) {
       success: true,
       message: `Task captured: ${parsedTask.title}`,
       task: task,
-      calendar_synced: calendarSynced
+      calendar_synced: calendarSynced,
+      credits_remaining: creditsRemaining
     });
 
   } catch (err: any) {

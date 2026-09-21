@@ -31,48 +31,54 @@ CREATE INDEX IF NOT EXISTS idx_credit_transactions_user_id ON credit_transaction
 CREATE INDEX IF NOT EXISTS idx_profiles_stripe_customer_id ON profiles(stripe_customer_id);
 
 -- 3. Atomic Credit Deduction Stored Procedure (RPC)
--- Returns true if credit deducted or plan is unlimited, false if insufficient credits.
+-- Returns the caller's remaining credit balance on success (-1 sentinel for
+-- unlimited plans, which never decrement), or NULL if the deduction failed
+-- (insufficient credits or unknown user). Callers that only care about
+-- success/failure can check `IS NOT NULL`; callers that want to react to a
+-- low balance (e.g. upsell nudges) can use the returned count directly.
 CREATE OR REPLACE FUNCTION deduct_credit(
   p_user_id UUID,
   p_amount INT DEFAULT 1,
   p_description TEXT DEFAULT 'AI DO Task Execution'
 )
-RETURNS BOOLEAN AS $$
+RETURNS INT AS $$
 DECLARE
   v_plan TEXT;
   v_current_credits INT;
+  v_remaining INT;
 BEGIN
   SELECT plan_type, credits INTO v_plan, v_current_credits
   FROM profiles
   WHERE id = p_user_id;
 
   IF NOT FOUND THEN
-    RETURN FALSE;
+    RETURN NULL;
   END IF;
 
   -- Unlimited plans bypass credit deduction
   IF v_plan IN ('pro', 'god-mode', 'scale') THEN
     INSERT INTO credit_transactions (user_id, amount, description)
     VALUES (p_user_id, 0, p_description || ' (God Mode - Unlimited)');
-    RETURN TRUE;
+    RETURN -1;
   END IF;
 
   -- Check if user has sufficient credits
   IF v_current_credits < p_amount THEN
-    RETURN FALSE;
+    RETURN NULL;
   END IF;
 
   -- Atomic update
   UPDATE profiles
   SET credits = credits - p_amount
-  WHERE id = p_user_id AND credits >= p_amount;
+  WHERE id = p_user_id AND credits >= p_amount
+  RETURNING credits INTO v_remaining;
 
   IF FOUND THEN
     INSERT INTO credit_transactions (user_id, amount, description)
     VALUES (p_user_id, -p_amount, p_description);
-    RETURN TRUE;
+    RETURN v_remaining;
   ELSE
-    RETURN FALSE;
+    RETURN NULL;
   END IF;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;

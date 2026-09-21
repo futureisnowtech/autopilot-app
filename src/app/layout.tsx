@@ -2,6 +2,8 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono, Inter } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/sonner"
+import AdTracking from "@/components/ad-tracking";
+import CookieConsent from "@/components/cookie-consent";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -28,22 +30,22 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "Autopilot — AI Operating System for Founders",
+  title: "TaskMinder — AI Operating System for Founders",
   description: "The elite AI assistant that captures tasks via voice or text, auto-schedules your day, and syncs to your calendar. Built for busy founders.",
   openGraph: {
-    title: "Autopilot — AI Operating System for Founders",
+    title: "TaskMinder — AI Operating System for Founders",
     description: "Capture thoughts, automate tasks, schedule your entire life — without lifting a finger.",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Autopilot — AI Operating System",
+    title: "TaskMinder — AI Operating System",
     description: "The elite AI assistant that runs your schedule autonomously.",
   },
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
-    title: 'Autopilot',
+    title: 'TaskMinder',
   },
   manifest: '/manifest.json',
   verification: {
@@ -64,6 +66,8 @@ export default function RootLayout({
       <body className={`${inter.className} min-h-full flex flex-col bg-[#0d0d1f]`}>
         {children}
         <Toaster position="top-right" theme="dark" richColors />
+        <AdTracking />
+        <CookieConsent />
       </body>
     </html>
   );

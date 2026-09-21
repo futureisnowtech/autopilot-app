@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -38,6 +39,7 @@ import AskAboutCalendarModal from '@/components/ask-about-calendar-modal';
 const creditsSeenKey = (uid: string) => `creditsModalSeen:${uid}`;
 
 export default function Dashboard() {
+  const router = useRouter();
   const [userName, setUserName] = useState<string>('Founder');
   const [userId, setUserId] = useState<string | null>(null);
   const [credits, setCredits] = useState<number>(0);
@@ -130,7 +132,7 @@ export default function Dashboard() {
     } else if (sync === 'success') {
       setIsSynced(true);
       toast.success('Google Calendar connected', {
-        description: 'Autopilot will now push events to your calendar.',
+        description: 'TaskMinder will now push events to your calendar.',
       });
     }
 
@@ -222,19 +224,54 @@ export default function Dashboard() {
     await supabase.from('profiles').update({ settings: newSettings }).eq('id', userId);
   };
 
-  // Gate all note interactions behind calendar sync
-  const requireCalendarSync = () => {
-    if (isSynced) return true;
-    toast.info('Connect your calendar first', {
-      description: 'Sync a calendar so Autopilot can schedule your notes.',
+  // Reload nudges at 5/2/0 credits remaining. `-1` is the unlimited-plan
+  // sentinel from the deduct_credit RPC; `null` means the RPC didn't run
+  // (e.g. migration not applied yet) — skip in both cases rather than nudge
+  // on bad data.
+  const maybeNudgeCreditReload = (remaining: number | null) => {
+    if (remaining === null || remaining === -1) return;
+    setCredits(remaining);
+
+    const goToBilling = () => router.push('/dashboard/billing');
+
+    if (remaining === 5) {
+      toast('5 credits left', {
+        description: "That's roughly 5 more things off your plate without you touching a calendar. Reload now so a busy week doesn't stall on a credit wall.",
+        action: { label: 'Reload', onClick: goToBilling },
+        duration: 8000,
+      });
+    } else if (remaining === 2) {
+      toast.warning('2 credits left', {
+        description: "Two more captures before you're back to manually scheduling things yourself. A $10 top-up buys back that time and the mental space of not tracking it yourself.",
+        action: { label: 'Reload now', onClick: goToBilling },
+        duration: 9000,
+      });
+    } else if (remaining === 0) {
+      toast.error("You're out of credits", {
+        description: "Nothing gets lost — but new notes will sit unprocessed until you reload. Keep the discipline of logging things the moment you think of them.",
+        action: { label: 'Reload credits', onClick: goToBilling },
+        duration: 12000,
+      });
+    }
+  };
+
+  // Calendar sync is an enhancement, not a requirement: unsynced notes still
+  // save (to the backlog, scheduled manually later) so signup never blocks
+  // on Google's OAuth verification/consent-screen state. Nudge once per
+  // session instead of gating.
+  const nudgedCalendarSyncRef = useRef(false);
+  const nudgeCalendarSync = () => {
+    if (isSynced || nudgedCalendarSyncRef.current) return;
+    nudgedCalendarSyncRef.current = true;
+    toast.info('Tip: connect your calendar', {
+      description: 'Sync a calendar so TaskMinder can auto-schedule your notes. Your notes save either way.',
+      action: { label: 'Connect', onClick: () => setShowSyncModal(true) },
     });
-    setShowSyncModal(true);
-    return false;
   };
 
   // Voice capture start/stop
   const toggleRecording = () => {
-    if (!requireCalendarSync()) return;
+    nudgeCalendarSync();
     if (isRecording) {
       stoppedByUserRef.current = true;
       recognitionRef.current?.stop();
@@ -265,7 +302,7 @@ export default function Dashboard() {
   // scheduled time) fills in via the same toast a few seconds later, and
   // never blocks the user from logging the next thing in the meantime.
   const handleIntakeSubmit = (inputStr: string) => {
-    if (!requireCalendarSync()) return;
+    nudgeCalendarSync();
     const finalInput = inputStr.trim();
     if (!finalInput || !userId) return;
 
@@ -305,6 +342,12 @@ export default function Dashboard() {
         );
 
         fetchRecentTasks(userId);
+
+        // Slight delay so the reload nudge doesn't visually collide with
+        // the "Logged/Scheduled" success toast that just fired.
+        if (result.credits_remaining !== undefined) {
+          setTimeout(() => maybeNudgeCreditReload(result.credits_remaining), 1200);
+        }
       })
       .catch((err: any) => {
         toast.error(`Couldn't schedule "${finalInput}"`, {
@@ -353,7 +396,7 @@ export default function Dashboard() {
       setCalendarEmail(email);
       setShowSyncModal(false);
       toast.success('Google Calendar Connected', {
-        description: 'Autopilot will now automatically push events to your calendar in real-time.'
+        description: 'TaskMinder will now automatically push events to your calendar in real-time.'
       });
     } catch (err: any) {
       toast.error(err.message || 'Failed to save calendar settings');
@@ -375,7 +418,7 @@ export default function Dashboard() {
           <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/20">
             <Sparkles className="w-6 h-6 text-white" />
           </div>
-          <span className="text-2xl font-black tracking-tighter text-indigo-400 uppercase">Autopilot</span>
+          <span className="text-2xl font-black tracking-tighter text-indigo-400 uppercase">TaskMinder</span>
         </div>
 
         <div className="flex items-center gap-2">
@@ -480,13 +523,13 @@ export default function Dashboard() {
             {/* Input Selection Toggle */}
             <div className="flex justify-center p-1 bg-white/5 border border-white/5 rounded-full w-fit mx-auto">
               <button
-                onClick={() => { if (!requireCalendarSync()) return; setInputType('voice'); stopRecording(); }}
+                onClick={() => { nudgeCalendarSync(); setInputType('voice'); stopRecording(); }}
                 className={`px-6 py-2.5 rounded-full text-sm font-bold tracking-tight transition-all flex items-center gap-2 ${inputType === 'voice' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
               >
                 <Mic className="w-4 h-4" /> Voice Note
               </button>
               <button
-                onClick={() => { if (!requireCalendarSync()) return; setInputType('text'); stopRecording(); }}
+                onClick={() => { nudgeCalendarSync(); setInputType('text'); stopRecording(); }}
                 className={`px-6 py-2.5 rounded-full text-sm font-bold tracking-tight transition-all flex items-center gap-2 ${inputType === 'text' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
               >
                 <Keyboard className="w-4 h-4" /> Text Note
@@ -495,7 +538,7 @@ export default function Dashboard() {
 
             <div className="flex justify-center">
               <button
-                onClick={() => { if (!requireCalendarSync()) return; setShowAskModal(true); }}
+                onClick={() => { if (!isSynced) { setShowSyncModal(true); return; } setShowAskModal(true); }}
                 className="px-6 py-3 bg-gradient-to-r from-indigo-600/20 to-purple-600/20 hover:from-indigo-600/30 hover:to-purple-600/30 border border-indigo-500/30 hover:border-indigo-500/50 rounded-2xl text-sm font-bold text-indigo-300 hover:text-indigo-200 flex items-center gap-2.5 transition-all shadow-lg shadow-indigo-500/5 hover:shadow-indigo-500/10 hover:scale-[1.02] active:scale-[0.98]"
               >
                 <MessageCircleQuestion className="w-5 h-5" /> Ask or Update Your Calendar
@@ -571,7 +614,7 @@ export default function Dashboard() {
                     <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 ml-4">Text Input Note</label>
                     <textarea
                       value={textInput}
-                      onFocus={(e) => { if (!requireCalendarSync()) e.currentTarget.blur(); }}
+                      onFocus={() => nudgeCalendarSync()}
                       onChange={(e) => setTextInput(e.target.value)}
                       placeholder="e.g. Schedule call with Syed tomorrow at 2 PM to review TAGtargets, 30 minutes"
                       className="w-full h-32 bg-white/5 border border-white/10 rounded-2xl p-5 text-white placeholder:text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-medium text-lg"
@@ -835,7 +878,7 @@ export default function Dashboard() {
                   <div className="p-4 bg-purple-500/10 border border-purple-500/20 rounded-xl">
                     <p className="text-sm font-bold text-purple-300 mb-1">⚙️ AI Execution</p>
                     <p className="text-xs text-slate-400 leading-relaxed">
-                      When Autopilot runs an "AI DO" task (research, generation, analysis), it deducts 1 credit for the Gemini execution.
+                      When TaskMinder runs an "AI DO" task (research, generation, analysis), it deducts 1 credit for the Gemini execution.
                     </p>
                   </div>
 

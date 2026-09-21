@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/lib/supabase';
 import { toast } from "sonner";
+import { trackPurchase } from '@/lib/ad-conversions';
 
 export default function BillingPage() {
   const [credits, setCredits] = useState<number>(0);
@@ -46,10 +47,14 @@ export default function BillingPage() {
       const params = new URLSearchParams(window.location.search);
       if (params.get('success') === 'true') {
         const addedCredits = params.get('credits');
+        // Values here mirror PLANS.pro.amount / CREDIT_PACKAGES.topup_50.amount
+        // in src/lib/stripe.ts — update both together if pricing changes.
         if (addedCredits) {
           toast.success(`Success! 50 AI credits added to your account.`, { duration: 5000 });
+          trackPurchase(10, 'credit_topup');
         } else {
           toast.success('Welcome to God Mode! Unlimited executions unlocked.', { duration: 5000 });
+          trackPurchase(29, 'subscription');
         }
         window.history.replaceState({}, document.title, window.location.pathname);
       } else if (params.get('canceled') === 'true') {

@@ -75,7 +75,7 @@ export default function CalendarSyncModal({
               Share Google Calendar
             </h2>
             <p className="text-sm text-slate-400 font-medium">
-              Give your Autopilot AI permission to schedule events directly on your calendar.
+              Give your TaskMinder AI permission to schedule events directly on your calendar.
             </p>
           </div>
 

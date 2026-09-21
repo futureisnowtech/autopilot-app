@@ -11,12 +11,21 @@ export async function POST(req: Request) {
   let event: Stripe.Event;
 
   try {
-    if (webhookSecret && sig) {
-      event = stripe.webhooks.constructEvent(body, sig, webhookSecret);
-    } else {
-      // In development / testing mode without signature verification configured
-      console.warn('STRIPE_WEBHOOK_SECRET is not set. Processing event without signature check.');
+    if (!webhookSecret) {
+      // Never trust an unsigned event: without this, anyone who finds the
+      // endpoint can POST a fake checkout.session.completed and grant
+      // themselves free credits/subscription. Only local dev without the
+      // secret configured is expected to hit this.
+      if (process.env.NODE_ENV === 'production') {
+        console.error('STRIPE_WEBHOOK_SECRET is not set — refusing to process webhook in production.');
+        return NextResponse.json({ error: 'Webhook not configured' }, { status: 500 });
+      }
+      console.warn('STRIPE_WEBHOOK_SECRET is not set. Processing event without signature check (dev only).');
       event = JSON.parse(body) as Stripe.Event;
+    } else if (!sig) {
+      return NextResponse.json({ error: 'Missing stripe-signature header' }, { status: 400 });
+    } else {
+      event = stripe.webhooks.constructEvent(body, sig, webhookSecret);
     }
   } catch (err: any) {
     console.error(`Webhook Signature Verification Error: ${err.message}`);

@@ -108,7 +108,7 @@ export async function POST(req: Request) {
               currency: 'usd',
               product_data: {
                 name: '50 AI Credits Refill',
-                description: 'Instant top-up of 50 AI credits for Autopilot task execution.',
+                description: 'Instant top-up of 50 AI credits for TaskMinder task execution.',
               },
               unit_amount: pkg.amount,
             },

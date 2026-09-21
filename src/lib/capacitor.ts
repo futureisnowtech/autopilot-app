@@ -24,7 +24,7 @@ export const initCapacitorListeners = (onDeepLink?: (url: string) => void) => {
     console.warn('StatusBar configuration notice:', err);
   }
 
-  // Handle mobile app URL open (e.g. com.autopilot.app://auth/callback)
+  // Handle mobile app URL open (e.g. com.taskminder.app://auth/callback)
   App.addListener('appUrlOpen', (event) => {
     try {
       const url = new URL(event.url);

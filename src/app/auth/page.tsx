@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { Sparkles, Loader2, ArrowRight, Mail } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { toast } from "sonner"
+import { trackSignup } from '@/lib/ad-conversions';
 
 type Mode = 'signin' | 'signup' | 'forgot';
 
@@ -25,6 +26,7 @@ export default function AuthPage() {
           password,
         });
         if (error) throw error;
+        trackSignup();
         toast.success('Account created! Please check your email or sign in.');
         setMode('signin');
       } else {
@@ -176,7 +178,7 @@ export default function AuthPage() {
                   <Loader2 className="w-6 h-6 animate-spin" />
                 ) : (
                   <>
-                    {isSignUp ? 'Initialize Autopilot' : 'Enter Command Center'}
+                    {isSignUp ? 'Initialize TaskMinder' : 'Enter Command Center'}
                     <ArrowRight className="w-6 h-6 group-hover:translate-x-1 transition-transform" />
                   </>
                 )}

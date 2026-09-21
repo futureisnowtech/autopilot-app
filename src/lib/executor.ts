@@ -22,6 +22,31 @@ export async function executeAiDoTask(taskId: string) {
       throw new Error('Insufficient credits. Please upgrade or top up.');
     }
 
+    // Fair-use ceiling for unlimited plans. Cost modeling (Gemini Pro-tier
+    // pricing vs. the $29/mo God Mode price) shows even ~500 real executions/
+    // month stays comfortably profitable, so this only exists to stop a
+    // scripted abuse loop from running unbounded Gemini spend on one
+    // account — it should never be hit by a real user.
+    const FAIR_USE_MONTHLY_CAP = 500;
+    if (isUnlimitedPlan) {
+      const monthStart = new Date();
+      monthStart.setUTCDate(1);
+      monthStart.setUTCHours(0, 0, 0, 0);
+      const { count, error: countError } = await supabaseAdmin
+        .from('credit_transactions')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', profile.id)
+        .ilike('description', 'AI DO Task Execution%')
+        .gte('created_at', monthStart.toISOString());
+
+      // If the count query itself fails (e.g. table not migrated yet), don't
+      // block execution over it — fail open, same posture as the credit
+      // deduction RPC elsewhere in this codebase.
+      if (!countError && count !== null && count >= FAIR_USE_MONTHLY_CAP) {
+        throw new Error('Monthly fair-use limit reached for AI DO executions. Contact support if you need a higher limit.');
+      }
+    }
+
     const { data: styleGuide } = await supabaseAdmin
       .from('style_guides')
       .select('*')
