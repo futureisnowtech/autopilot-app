@@ -19,12 +19,19 @@ const CANDIDATES: Record<ModelTier, string[]> = {
   flash: [
     process.env.GEMINI_FLASH_MODEL,
     'gemini-flash-latest',
+    // The 2.5 generation started 404ing with "no longer available to new
+    // users" ahead of its official Oct 2026 retirement. These are the exact
+    // replacement IDs Google's own error response named. Old 2.5 pins kept
+    // as a last-resort no-op fallback in case they ever come back.
+    'gemini-3.6-flash',
+    'gemini-3.5-flash-lite',
     'gemini-2.5-flash',
     'gemini-2.5-flash-lite',
   ].filter((m): m is string => !!m),
   pro: [
     process.env.GEMINI_PRO_MODEL,
     'gemini-pro-latest',
+    'gemini-3.1-pro',
     'gemini-2.5-pro',
     'gemini-flash-latest',
   ].filter((m): m is string => !!m),
