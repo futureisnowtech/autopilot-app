@@ -1,8 +1,8 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.taskminder.app',
-  appName: 'TaskMinder',
+  appId: 'com.sayso.app',
+  appName: 'Sayso',
   webDir: 'public',
   server: {
     // Hosted web app URL for dynamic SSR & API routes support

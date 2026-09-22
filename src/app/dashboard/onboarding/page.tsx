@@ -226,7 +226,7 @@ export default function OnboardingPage() {
             >
               <div className="space-y-4">
                 <h1 className="text-5xl font-black tracking-tight leading-tight">When do you <span className="text-indigo-500">conquer</span> your day?</h1>
-                <p className="text-xl text-slate-400 font-medium leading-relaxed">Define your primary focus window. TaskMinder will prioritize scheduling tasks during these hours.</p>
+                <p className="text-xl text-slate-400 font-medium leading-relaxed">Define your primary focus window. Sayso will prioritize scheduling tasks during these hours.</p>
               </div>
 
               <div className="space-y-6 bg-white/5 border border-white/10 p-10 rounded-[40px] shadow-2xl">
@@ -308,14 +308,14 @@ export default function OnboardingPage() {
                         </div>
                         <div>
                           <h3 className="text-2xl font-black text-white">Google Calendar Connected</h3>
-                          <p className="text-slate-400 text-sm font-medium mt-1">TaskMinder is fully linked and ready to schedule events.</p>
+                          <p className="text-slate-400 text-sm font-medium mt-1">Sayso is fully linked and ready to schedule events.</p>
                         </div>
                       </div>
                     ) : (
                       <div className="space-y-6">
                         <div className="p-6 bg-white/5 border border-white/10 rounded-3xl text-left space-y-4">
                           <p className="text-xl font-bold leading-relaxed">
-                            Share your calendar with TaskMinder's bot account to let it automatically schedule events directly on your calendar.
+                            Share your calendar with Sayso's bot account to let it automatically schedule events directly on your calendar.
                           </p>
                           <p className="text-base text-slate-400 leading-relaxed font-medium">
                             Takes under a minute: copy the bot email, share your calendar with it, then confirm.

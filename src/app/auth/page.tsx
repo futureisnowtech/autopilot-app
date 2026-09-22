@@ -178,7 +178,7 @@ export default function AuthPage() {
                   <Loader2 className="w-6 h-6 animate-spin" />
                 ) : (
                   <>
-                    {isSignUp ? 'Initialize TaskMinder' : 'Enter Command Center'}
+                    {isSignUp ? 'Initialize Sayso' : 'Enter Command Center'}
                     <ArrowRight className="w-6 h-6 group-hover:translate-x-1 transition-transform" />
                   </>
                 )}

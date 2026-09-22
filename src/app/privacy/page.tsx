@@ -8,8 +8,8 @@ export default function PrivacyPage() {
   return (
     <LegalDocLayout title="Privacy Policy" updated="September 2026">
       <p>
-        This Privacy Policy explains how <Placeholder>YOUR COMPANY LEGAL NAME</Placeholder> (&quot;TaskMinder,&quot; &quot;we,&quot; &quot;us&quot;)
-        collects, uses, and shares information when you use the TaskMinder application (the &quot;Service&quot;).
+        This Privacy Policy explains how <Placeholder>YOUR COMPANY LEGAL NAME</Placeholder> (&quot;Sayso,&quot; &quot;we,&quot; &quot;us&quot;)
+        collects, uses, and shares information when you use the Sayso application (the &quot;Service&quot;).
       </p>
 
       <h2>1. Information We Collect</h2>

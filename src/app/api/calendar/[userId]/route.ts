@@ -21,10 +21,10 @@ export async function GET(
     let icalContent = [
       'BEGIN:VCALENDAR',
       'VERSION:2.0',
-      'PRODID:-//TaskMinder AI//Task Calendar//EN',
+      'PRODID:-//Sayso AI//Task Calendar//EN',
       'CALSCALE:GREGORIAN',
       'METHOD:PUBLISH',
-      'X-WR-CALNAME:TaskMinder Tasks',
+      'X-WR-CALNAME:Sayso Tasks',
       'X-WR-TIMEZONE:UTC'
     ].join('\r\n');
 
@@ -53,7 +53,7 @@ export async function GET(
     return new Response(icalContent, {
       headers: {
         'Content-Type': 'text/calendar; charset=utf-8',
-        'Content-Disposition': `attachment; filename="taskminder-tasks.ics"`
+        'Content-Disposition': `attachment; filename="sayso-tasks.ics"`
       }
     });
   } catch (err: any) {

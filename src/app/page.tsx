@@ -13,7 +13,7 @@ export default function LandingPage() {
             <div className="w-8 h-8 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center">
               <Sparkles className="w-5 h-5 text-white" />
             </div>
-            <span className="text-xl font-bold tracking-tight">TaskMinder</span>
+            <span className="text-xl font-bold tracking-tight">Sayso</span>
           </div>
           <div className="flex items-center gap-8">
             <Link href="/auth" className="text-sm font-medium text-slate-300 hover:text-white transition-colors">
@@ -41,7 +41,7 @@ export default function LandingPage() {
 
           <p className="text-xl text-slate-400 mb-12 max-w-2xl mx-auto leading-relaxed">
             For everyone with too much in their head — the busy founder and the busy
-            Tuesday alike. Text it, say it, screenshot it. TaskMinder finds where it
+            Tuesday alike. Text it, say it, screenshot it. Sayso finds where it
             fits on your calendar and books it. No boards to build. No workflows to
             learn. No dashboard to babysit.
           </p>
@@ -60,12 +60,12 @@ export default function LandingPage() {
           <FeatureCard
             icon={<Calendar className="w-6 h-6 text-indigo-400" />}
             title="It finds the time"
-            description="Tell it what needs to happen. TaskMinder checks your real calendar, works around what's already there, and books it — travel and buffer time included."
+            description="Tell it what needs to happen. Sayso checks your real calendar, works around what's already there, and books it — travel and buffer time included."
           />
           <FeatureCard
             icon={<Target className="w-6 h-6 text-purple-400" />}
             title="It can just do it"
-            description="Some things don't need scheduling, they need doing. For those, TaskMinder can research, write, and hand you a finished doc — no extra app, no extra step."
+            description="Some things don't need scheduling, they need doing. For those, Sayso can research, write, and hand you a finished doc — no extra app, no extra step."
           />
           <FeatureCard
             icon={<Zap className="w-6 h-6 text-amber-400" />}
@@ -79,7 +79,7 @@ export default function LandingPage() {
       <footer className="border-t border-white/5 py-12 px-6">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-8">
           <div className="text-slate-500 text-sm">
-            © 2026 TaskMinder AI. Built for the future.
+            © 2026 Sayso AI. Built for the future.
           </div>
           <div className="flex gap-8 text-slate-400 text-sm">
             <Link href="/privacy" className="hover:text-white transition-colors">Privacy</Link>

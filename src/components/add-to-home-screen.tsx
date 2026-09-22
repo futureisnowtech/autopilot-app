@@ -110,7 +110,7 @@ function AddToHomeScreenModal({ platform, onClose }: { platform: Platform; onClo
         <div className="p-8 space-y-6">
           <div>
             <h2 className="text-2xl font-black tracking-tight text-white mb-2">
-              Add TaskMinder to Your Home Screen
+              Add Sayso to Your Home Screen
             </h2>
             <p className="text-sm text-slate-400 font-medium">
               Get it on your phone like any other app — one tap and you're capturing tasks.
@@ -129,7 +129,7 @@ function AddToHomeScreenModal({ platform, onClose }: { platform: Platform; onClo
               />
               <Step
                 icon={<Smartphone className="w-5 h-5" />}
-                text={<>Tap <strong className="text-white">Add</strong> — TaskMinder now lives on your home screen.</>}
+                text={<>Tap <strong className="text-white">Add</strong> — Sayso now lives on your home screen.</>}
               />
             </div>
           )}
@@ -146,7 +146,7 @@ function AddToHomeScreenModal({ platform, onClose }: { platform: Platform; onClo
               />
               <Step
                 icon={<Smartphone className="w-5 h-5" />}
-                text={<>Confirm — TaskMinder now lives on your home screen.</>}
+                text={<>Confirm — Sayso now lives on your home screen.</>}
               />
             </div>
           )}

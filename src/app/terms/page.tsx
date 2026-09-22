@@ -8,12 +8,12 @@ export default function TermsPage() {
   return (
     <LegalDocLayout title="Terms of Service" updated="September 2026">
       <p>
-        These Terms of Service (&quot;Terms&quot;) govern your use of TaskMinder (the &quot;Service&quot;), operated by <Placeholder>YOUR COMPANY LEGAL NAME</Placeholder>.
+        These Terms of Service (&quot;Terms&quot;) govern your use of Sayso (the &quot;Service&quot;), operated by <Placeholder>YOUR COMPANY LEGAL NAME</Placeholder>.
         By creating an account, you agree to these Terms.
       </p>
 
       <h2>1. The Service</h2>
-      <p>TaskMinder lets you capture tasks by voice, text, or screenshot, and uses AI to organize and, optionally, schedule them on a calendar you connect. Some features (&quot;AI DO&quot; tasks) use AI to research or draft a document on your behalf.</p>
+      <p>Sayso lets you capture tasks by voice, text, or screenshot, and uses AI to organize and, optionally, schedule them on a calendar you connect. Some features (&quot;AI DO&quot; tasks) use AI to research or draft a document on your behalf.</p>
 
       <h2>2. Accounts</h2>
       <p>You must provide accurate information and are responsible for activity under your account and for keeping your password secure.</p>
@@ -34,7 +34,7 @@ export default function TermsPage() {
       <p>Task parsing, scheduling suggestions, and AI-generated documents are produced by third-party AI models (currently Google Gemini) and may contain errors. You&apos;re responsible for reviewing AI output before relying on it, especially for anything consequential.</p>
 
       <h2>6. Calendar Access</h2>
-      <p>If you connect a calendar, you authorize TaskMinder to read availability and create, modify, or delete events on your behalf as needed to schedule your tasks. Disconnect anytime from account settings.</p>
+      <p>If you connect a calendar, you authorize Sayso to read availability and create, modify, or delete events on your behalf as needed to schedule your tasks. Disconnect anytime from account settings.</p>
 
       <h2>7. Termination</h2>
       <p>We may suspend or terminate accounts that violate these Terms, including credit-system abuse. You may delete your account at any time.</p>

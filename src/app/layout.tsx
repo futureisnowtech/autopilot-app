@@ -30,22 +30,22 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "TaskMinder — AI Operating System for Founders",
+  title: "Sayso — AI Operating System for Founders",
   description: "The elite AI assistant that captures tasks via voice or text, auto-schedules your day, and syncs to your calendar. Built for busy founders.",
   openGraph: {
-    title: "TaskMinder — AI Operating System for Founders",
+    title: "Sayso — AI Operating System for Founders",
     description: "Capture thoughts, automate tasks, schedule your entire life — without lifting a finger.",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "TaskMinder — AI Operating System",
+    title: "Sayso — AI Operating System",
     description: "The elite AI assistant that runs your schedule autonomously.",
   },
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
-    title: 'TaskMinder',
+    title: 'Sayso',
   },
   manifest: '/manifest.json',
   verification: {

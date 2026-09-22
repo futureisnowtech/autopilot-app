@@ -1,7 +1,7 @@
 {
-  "name": "TaskMinder — Just say it, we'll find the time",
-  "short_name": "TaskMinder",
-  "description": "Tell it what's on your mind. TaskMinder finds where it fits on your calendar and books it.",
+  "name": "Sayso — Just say it, we'll find the time",
+  "short_name": "Sayso",
+  "description": "Tell it what's on your mind. Sayso finds where it fits on your calendar and books it.",
   "id": "/dashboard",
   "start_url": "/dashboard",
   "scope": "/",

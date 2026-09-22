@@ -132,7 +132,7 @@ export default function Dashboard() {
     } else if (sync === 'success') {
       setIsSynced(true);
       toast.success('Google Calendar connected', {
-        description: 'TaskMinder will now push events to your calendar.',
+        description: 'Sayso will now push events to your calendar.',
       });
     }
 
@@ -264,7 +264,7 @@ export default function Dashboard() {
     if (isSynced || nudgedCalendarSyncRef.current) return;
     nudgedCalendarSyncRef.current = true;
     toast.info('Tip: connect your calendar', {
-      description: 'Sync a calendar so TaskMinder can auto-schedule your notes. Your notes save either way.',
+      description: 'Sync a calendar so Sayso can auto-schedule your notes. Your notes save either way.',
       action: { label: 'Connect', onClick: () => setShowSyncModal(true) },
     });
   };
@@ -396,7 +396,7 @@ export default function Dashboard() {
       setCalendarEmail(email);
       setShowSyncModal(false);
       toast.success('Google Calendar Connected', {
-        description: 'TaskMinder will now automatically push events to your calendar in real-time.'
+        description: 'Sayso will now automatically push events to your calendar in real-time.'
       });
     } catch (err: any) {
       toast.error(err.message || 'Failed to save calendar settings');
@@ -418,7 +418,7 @@ export default function Dashboard() {
           <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/20">
             <Sparkles className="w-6 h-6 text-white" />
           </div>
-          <span className="text-2xl font-black tracking-tighter text-indigo-400 uppercase">TaskMinder</span>
+          <span className="text-2xl font-black tracking-tighter text-indigo-400 uppercase">Sayso</span>
         </div>
 
         <div className="flex items-center gap-2">
@@ -878,7 +878,7 @@ export default function Dashboard() {
                   <div className="p-4 bg-purple-500/10 border border-purple-500/20 rounded-xl">
                     <p className="text-sm font-bold text-purple-300 mb-1">⚙️ AI Execution</p>
                     <p className="text-xs text-slate-400 leading-relaxed">
-                      When TaskMinder runs an "AI DO" task (research, generation, analysis), it deducts 1 credit for the Gemini execution.
+                      When Sayso runs an "AI DO" task (research, generation, analysis), it deducts 1 credit for the Gemini execution.
                     </p>
                   </div>
 
