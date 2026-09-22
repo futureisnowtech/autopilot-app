@@ -18,6 +18,11 @@ export type ModelTier = 'flash' | 'pro';
  * The backstops deliberately span different model generations. When Google
  * sheds load it tends to 503 a whole generation at once, so a chain of
  * near-siblings just burns the time budget on the same overloaded pool.
+ *
+ * Every id here was verified to reach a serving pool (200, or a 429/503 that
+ * proves the model exists). The 2.5 generation is deliberately absent: both
+ * gemini-2.5-flash and gemini-2.5-pro now 404 with "no longer available to
+ * new users", so keeping them only bought a guaranteed-dead last candidate.
  */
 const CANDIDATES: Record<ModelTier, string[]> = {
   flash: [
@@ -27,15 +32,16 @@ const CANDIDATES: Record<ModelTier, string[]> = {
     'gemini-3.6-flash',
     'gemini-3.5-flash',
     'gemini-3.1-flash-lite',
-    'gemini-2.5-flash',
   ].filter((m): m is string => !!m),
   pro: [
     process.env.GEMINI_PRO_MODEL,
     'gemini-pro-latest',
     'gemini-3.1-pro-preview',
-    'gemini-2.5-pro',
+    // Flash backstops: a pro-tier answer is worth degrading rather than
+    // failing, and the pro models are the first to be quota-capped.
     'gemini-flash-latest',
     'gemini-3.8-flash',
+    'gemini-3.6-flash',
   ].filter((m): m is string => !!m),
 };
 
