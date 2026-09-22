@@ -1,14 +1,13 @@
-import { LegalDocLayout, Placeholder } from '@/components/legal-doc';
+import { LegalDocLayout } from '@/components/legal-doc';
 
 // Drafted from the app's actual data flows (Gemini processing, Google
 // Calendar OAuth, Stripe payments, Supabase storage). Not attorney-reviewed
-// — have it reviewed before relying on it for compliance. The one bracketed
-// placeholder below needs your actual legal entity name.
+// — have it reviewed before relying on it for compliance.
 export default function PrivacyPage() {
   return (
     <LegalDocLayout title="Privacy Policy" updated="September 2026">
       <p>
-        This Privacy Policy explains how <Placeholder>YOUR COMPANY LEGAL NAME</Placeholder> (&quot;Sayso,&quot; &quot;we,&quot; &quot;us&quot;)
+        This Privacy Policy explains how Future is Now Technologies (&quot;Sayso,&quot; &quot;we,&quot; &quot;us&quot;)
         collects, uses, and shares information when you use the Sayso application (the &quot;Service&quot;).
       </p>
 

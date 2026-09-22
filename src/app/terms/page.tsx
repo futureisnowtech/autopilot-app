@@ -1,14 +1,13 @@
-import { LegalDocLayout, Placeholder } from '@/components/legal-doc';
+import { LegalDocLayout } from '@/components/legal-doc';
 import Link from 'next/link';
 
 // Drafted from how the app actually works. Not attorney-reviewed — have it
-// reviewed before relying on it for compliance. Two bracketed placeholders
-// below need your legal entity name and jurisdiction.
+// reviewed before relying on it for compliance.
 export default function TermsPage() {
   return (
     <LegalDocLayout title="Terms of Service" updated="September 2026">
       <p>
-        These Terms of Service (&quot;Terms&quot;) govern your use of Sayso (the &quot;Service&quot;), operated by <Placeholder>YOUR COMPANY LEGAL NAME</Placeholder>.
+        These Terms of Service (&quot;Terms&quot;) govern your use of Sayso (the &quot;Service&quot;), operated by Future is Now Technologies.
         By creating an account, you agree to these Terms.
       </p>
 
@@ -40,10 +39,10 @@ export default function TermsPage() {
       <p>We may suspend or terminate accounts that violate these Terms, including credit-system abuse. You may delete your account at any time.</p>
 
       <h2>8. Disclaimers and Limitation of Liability</h2>
-      <p>The Service is provided &quot;as is&quot; without warranties of any kind. To the maximum extent permitted by law, <Placeholder>YOUR COMPANY LEGAL NAME</Placeholder> is not liable for indirect, incidental, or consequential damages arising from your use of the Service, including missed appointments or scheduling errors resulting from AI-generated output.</p>
+      <p>The Service is provided &quot;as is&quot; without warranties of any kind. To the maximum extent permitted by law, Future is Now Technologies is not liable for indirect, incidental, or consequential damages arising from your use of the Service, including missed appointments or scheduling errors resulting from AI-generated output.</p>
 
       <h2>9. Governing Law</h2>
-      <p>These Terms are governed by the laws of <Placeholder>YOUR STATE/COUNTRY OF INCORPORATION</Placeholder>, without regard to conflict-of-law principles.</p>
+      <p>These Terms are governed by the laws of the Commonwealth of Virginia, without regard to conflict-of-law principles.</p>
 
       <h2>10. Changes to These Terms</h2>
       <p>We may update these Terms from time to time. Continued use after changes take effect constitutes acceptance.</p>
