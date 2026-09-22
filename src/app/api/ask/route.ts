@@ -5,6 +5,7 @@ import { supabaseAdmin } from '@/lib/supabase-admin';
 import { getSupabaseConfig } from '@/lib/supabase-config';
 import { generateWithFallback } from '@/lib/gemini';
 import { errorResponse } from '@/lib/api-errors';
+import { formatTasks, formatEvents } from '@/lib/prompt-data';
 import { listUpcomingEvents, pushToGoogleCalendar, deleteFromGoogleCalendar, findAvailableSlot } from '@/lib/calendar';
 
 // Answering pulls the user's tasks, their Google Calendar, and then a Gemini
@@ -71,7 +72,7 @@ export async function POST(req: Request) {
     // or is still holding onto (backlog, needs-info, etc).
     const { data: tasks } = await supabaseAdmin
       .from('tasks')
-      .select('id, title, status, urgency, scheduled_start, scheduled_end, due_date, notes, calendar_event_id')
+      .select('id, title, status, urgency, scheduled_start, scheduled_end, due_date, notes')
       .eq('user_id', userId)
       .neq('status', 'Done')
       .order('scheduled_start', { ascending: true, nullsFirst: false })
@@ -89,6 +90,10 @@ export async function POST(req: Request) {
 
     const tier = profile.plan_type === 'free' ? 'standard' : 'better';
 
+    // Compact, de-duplicated rows instead of raw JSON — see lib/prompt-data.
+    const taskBlock = formatTasks(tasks);
+    const eventBlock = formatEvents(calendarEvents);
+
     const prompt = `
       You are a helpful assistant that can BOTH answer questions about the user's
       schedule AND detect when they want to modify it.
@@ -99,11 +104,11 @@ export async function POST(req: Request) {
       Current date/time: ${now.toISOString()}
       User's timezone: ${timezone}
 
-      TASKS SAYSO IS TRACKING (JSON):
-      ${JSON.stringify(tasks || [])}
+      TASKS SAYSO IS TRACKING (pipe-delimited, first line is the header):
+      ${taskBlock.text}
 
-      CALENDAR EVENTS (JSON, includes things Sayso did not create):
-      ${JSON.stringify(calendarEvents)}
+      CALENDAR EVENTS (includes things Sayso did not create):
+      ${eventBlock}
 
       USER'S REQUEST: ${question.trim()}
 
@@ -115,10 +120,11 @@ export async function POST(req: Request) {
          in this exact format:
 
          ---ACTION---
-         {"type": "reschedule"|"delete"|"update", "task_id": "uuid-if-known-or-null", "task_title": "matched title", "new_start": "ISO8601-or-null", "new_end": "ISO8601-or-null", "description": "human-readable summary of what will change"}
+         {"type": "reschedule"|"delete"|"update", "task_ref": "the ref from the tasks table, e.g. T7, or null", "task_title": "matched title", "new_start": "ISO8601-or-null", "new_end": "ISO8601-or-null", "description": "human-readable summary of what will change"}
          ---END_ACTION---
 
-         Match the task by finding the best title match from the tasks list.
+         Identify the task by its ref from the first column, and always also
+         include its exact title in task_title.
          For reschedule: calculate the new ISO8601 times based on the user's
          request relative to the current time and timezone.
          For delete/cancel: set type to "delete".
@@ -139,6 +145,16 @@ export async function POST(req: Request) {
       try {
         action = JSON.parse(actionMatch[1].trim());
         cleanAnswer = rawAnswer.replace(/---ACTION---[\s\S]*?---END_ACTION---/, '').trim();
+
+        // Swap the prompt-local ref (T7) back to the real uuid here, so the
+        // client and the execute path keep dealing in ordinary task_ids. A
+        // ref we don't recognise just leaves task_id null, and execution
+        // falls back to matching on task_title as it already does.
+        if (action && typeof action === 'object') {
+          const ref = typeof action.task_ref === 'string' ? action.task_ref.trim().toUpperCase() : null;
+          action.task_id = ref ? taskBlock.refs.get(ref) ?? null : null;
+          delete action.task_ref;
+        }
       } catch {
         // If JSON parse fails, just show the answer without action
       }
