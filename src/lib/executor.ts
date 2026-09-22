@@ -74,7 +74,7 @@ export async function executeAiDoTask(taskId: string) {
     `;
 
     // 3. Execution (Gemini for all, Pro for Paid)
-    const tier = profile.plan_type === 'free' ? 'flash' : 'pro';
+    const tier = profile.plan_type === 'free' ? 'standard' : 'better';
     const output = await generateWithFallback(tier, prompt);
 
     // 4. Update task and deduct credit
@@ -139,7 +139,7 @@ export async function learnFromCompletedTask(taskId: string) {
       Keep it to 1 sentence.
     `;
 
-    const learning = (await generateWithFallback('flash', prompt)).trim();
+    const learning = (await generateWithFallback('standard', prompt)).trim();
 
     if (learning) {
       const { data: styleGuide } = await supabaseAdmin

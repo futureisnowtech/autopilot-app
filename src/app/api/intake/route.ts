@@ -1,10 +1,16 @@
 import { createServerClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
+import { errorResponse } from '@/lib/api-errors';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { parseTaskWithAI, getExecutionPlan } from '@/lib/ai';
 import { getSupabaseConfig } from '@/lib/supabase-config';
 import { pushToGoogleCalendar, findAvailableSlot } from '@/lib/calendar';
+
+// This route runs a model call, which the shared Gemini budget caps at
+// ~30s. Without an explicit limit the platform default can be shorter,
+// killing the function mid-flight so the browser gets no response at all.
+export const maxDuration = 60;
 
 export async function POST(req: Request) {
   try {
@@ -298,7 +304,6 @@ export async function POST(req: Request) {
     });
 
   } catch (err: any) {
-    console.error('Intake Error:', err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return errorResponse('Intake', err);
   }
 }

@@ -1,8 +1,9 @@
 import { generateWithFallback } from "./gemini";
 
 export async function parseTaskWithAI(input: string, context?: string, plan: string = 'free') {
-  // Use Flash for free, Pro for paid
-  const tier = plan === 'free' ? 'flash' : 'pro';
+  // Paid plans get a more capable flash model — never the pro product
+  // line, which is priced higher and quota-caps first.
+  const tier = plan === 'free' ? 'standard' : 'better';
 
   const prompt = `
     You are an elite Chief of Staff. Extract task fields from the input. Also generate 2-4 short actionable AI enhancement bullets (preparation tips, things to remember, suggested follow-ups, etc.) based on the input.
@@ -36,7 +37,7 @@ export async function parseTaskWithAI(input: string, context?: string, plan: str
 }
 
 export async function getExecutionPlan(task: any, styleGuide?: string, plan: string = 'free') {
-  const tier = plan === 'free' ? 'flash' : 'pro';
+  const tier = plan === 'free' ? 'standard' : 'better';
 
   const prompt = `
     You are an AI Planner. Analyze the task and delivery preferences.

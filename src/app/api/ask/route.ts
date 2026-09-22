@@ -3,7 +3,8 @@ import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { getSupabaseConfig } from '@/lib/supabase-config';
-import { generateWithFallback, ModelsUnavailableError } from '@/lib/gemini';
+import { generateWithFallback } from '@/lib/gemini';
+import { errorResponse } from '@/lib/api-errors';
 import { listUpcomingEvents, pushToGoogleCalendar, deleteFromGoogleCalendar, findAvailableSlot } from '@/lib/calendar';
 
 // Answering pulls the user's tasks, their Google Calendar, and then a Gemini
@@ -86,7 +87,7 @@ export async function POST(req: Request) {
         )
       : [];
 
-    const tier = profile.plan_type === 'free' ? 'flash' : 'pro';
+    const tier = profile.plan_type === 'free' ? 'standard' : 'better';
 
     const prompt = `
       You are a helpful assistant that can BOTH answer questions about the user's
@@ -145,14 +146,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ success: true, answer: cleanAnswer, action });
   } catch (err: any) {
-    console.error('Ask About Calendar Error:', err);
-    if (err instanceof ModelsUnavailableError) {
-      return NextResponse.json(
-        { error: 'The AI is busy right now. Give it a few seconds and ask again.' },
-        { status: 503 },
-      );
-    }
-    return NextResponse.json({ error: err.message || 'Server error' }, { status: 500 });
+    return errorResponse('Ask About Calendar', err);
   }
 }
 
@@ -315,7 +309,6 @@ async function handleExecuteAction(userId: string, action: any) {
 
     return NextResponse.json({ error: 'Unknown action type' }, { status: 400 });
   } catch (err: any) {
-    console.error('Execute Action Error:', err);
-    return NextResponse.json({ error: err.message || 'Failed to execute action' }, { status: 500 });
+    return errorResponse('Execute Action', err);
   }
 }
