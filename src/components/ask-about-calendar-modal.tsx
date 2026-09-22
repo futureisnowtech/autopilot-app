@@ -18,6 +18,61 @@ const SUGGESTIONS = [
   "Move my next meeting to tomorrow at 3 PM",
 ];
 
+// The route can legitimately take tens of seconds (calendar reads + a model
+// call), so give it real headroom — but still bound it, so a dropped
+// connection surfaces as a message rather than an indefinite spinner.
+const REQUEST_TIMEOUT_MS = 70_000;
+
+/**
+ * POSTs to /api/ask and always resolves to a usable message.
+ *
+ * Two failure modes were reaching users as raw browser text: a fetch that
+ * never completes (Safari reports the TypeError as "Load failed", which says
+ * nothing), and an error response that isn't JSON — a platform-level 504 or
+ * 502 returns an HTML page, so res.json() throws a parser error that then
+ * gets shown as if it were the real problem. Both are translated here.
+ */
+async function postAsk(body: Record<string, unknown>): Promise<{ answer: string; action?: any }> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
+  let res: Response;
+  try {
+    res = await fetch('/api/ask', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+  } catch (err: any) {
+    if (err?.name === 'AbortError') {
+      throw new Error("That took too long to come back. Please try again.");
+    }
+    throw new Error("Couldn't reach the server. Check your connection and try again.");
+  } finally {
+    clearTimeout(timer);
+  }
+
+  const raw = await res.text();
+  let parsed: any = null;
+  try {
+    parsed = raw ? JSON.parse(raw) : null;
+  } catch {
+    // Non-JSON body — a gateway error page, not something worth showing.
+  }
+
+  if (!res.ok || !parsed?.success) {
+    throw new Error(
+      parsed?.error ||
+        (res.status >= 500
+          ? 'The server had trouble with that. Please try again in a moment.'
+          : `Request failed (${res.status}).`),
+    );
+  }
+
+  return parsed;
+}
+
 export default function AskAboutCalendarModal({ onClose, onTasksChanged }: AskAboutCalendarModalProps) {
   const [question, setQuestion] = useState('');
   const [answer, setAnswer] = useState<string | null>(null);
@@ -25,6 +80,7 @@ export default function AskAboutCalendarModal({ onClose, onTasksChanged }: AskAb
   const [pendingAction, setPendingAction] = useState<any>(null);
   const [isExecuting, setIsExecuting] = useState(false);
   const [actionResult, setActionResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [askError, setAskError] = useState<string | null>(null);
 
   const ask = async (q: string) => {
     const finalQuestion = q.trim();
@@ -34,20 +90,17 @@ export default function AskAboutCalendarModal({ onClose, onTasksChanged }: AskAb
     setAnswer(null);
     setPendingAction(null);
     setActionResult(null);
+    setAskError(null);
     try {
-      const res = await fetch('/api/ask', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ question: finalQuestion }),
-      });
-      const result = await res.json();
-      if (!res.ok || !result.success) throw new Error(result.error || 'Failed to get an answer');
+      const result = await postAsk({ question: finalQuestion });
       setAnswer(result.answer);
       if (result.action) {
         setPendingAction(result.action);
       }
     } catch (err: any) {
-      toast.error(err.message || 'Failed to ask about your calendar');
+      const message = err?.message || 'Failed to ask about your calendar';
+      setAskError(message);
+      toast.error(message);
     } finally {
       setIsAsking(false);
     }
@@ -57,13 +110,7 @@ export default function AskAboutCalendarModal({ onClose, onTasksChanged }: AskAb
     if (!pendingAction || isExecuting) return;
     setIsExecuting(true);
     try {
-      const res = await fetch('/api/ask', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ executeAction: pendingAction }),
-      });
-      const result = await res.json();
-      if (!res.ok || !result.success) throw new Error(result.error || 'Action failed');
+      const result = await postAsk({ executeAction: pendingAction });
       setActionResult({ success: true, message: result.answer || 'Done!' });
       setPendingAction(null);
       toast.success('Calendar updated!');
@@ -85,6 +132,7 @@ export default function AskAboutCalendarModal({ onClose, onTasksChanged }: AskAb
     setAnswer(null);
     setPendingAction(null);
     setActionResult(null);
+    setAskError(null);
     setQuestion('');
   };
 
@@ -154,6 +202,28 @@ export default function AskAboutCalendarModal({ onClose, onTasksChanged }: AskAb
             <div className="p-5 bg-white/5 border border-white/10 rounded-2xl">
               <p className="text-sm text-slate-200 leading-relaxed whitespace-pre-wrap">{answer}</p>
             </div>
+          )}
+
+          {askError && !isAsking && (
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="p-4 bg-red-500/10 border border-red-500/20 rounded-2xl space-y-2"
+            >
+              <p className="text-sm font-bold text-red-400 flex items-center gap-2">
+                <AlertCircle className="w-4 h-4" /> Couldn&apos;t answer that
+              </p>
+              <p className="text-xs text-slate-300">{askError}</p>
+              {question.trim() && (
+                <Button
+                  onClick={() => ask(question)}
+                  variant="ghost"
+                  className="h-8 text-xs text-indigo-400 hover:text-indigo-300 font-bold px-0"
+                >
+                  Try again →
+                </Button>
+              )}
+            </motion.div>
           )}
 
           {/* Pending Action Confirmation */}

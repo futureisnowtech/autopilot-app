@@ -3,8 +3,19 @@ import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { getSupabaseConfig } from '@/lib/supabase-config';
-import { generateWithFallback } from '@/lib/gemini';
+import { generateWithFallback, ModelsUnavailableError } from '@/lib/gemini';
 import { listUpcomingEvents, pushToGoogleCalendar, deleteFromGoogleCalendar, findAvailableSlot } from '@/lib/calendar';
+
+// Answering pulls the user's tasks, their Google Calendar, and then a Gemini
+// completion, so the default (short) limit is not enough headroom. The AI
+// budget below is set well under this so a slow model still leaves time to
+// serialize a real JSON error — a function killed mid-flight sends no
+// response at all, which the browser reports as a bare network failure.
+export const maxDuration = 60;
+
+// Leaves ~25s of the 60s ceiling for the Supabase + Google Calendar reads
+// that run before the model call, plus response serialization.
+const AI_BUDGET_MS = 35_000;
 
 async function getAuthenticatedUser() {
   const { url, anonKey } = getSupabaseConfig();
@@ -116,7 +127,7 @@ export async function POST(req: Request) {
       4. Only reference what's actually in the data. Don't invent tasks.
     `;
 
-    const rawAnswer = await generateWithFallback(tier, prompt);
+    const rawAnswer = await generateWithFallback(tier, prompt, { budgetMs: AI_BUDGET_MS });
 
     // Parse out action block if present
     const actionMatch = rawAnswer.match(/---ACTION---\s*([\s\S]*?)\s*---END_ACTION---/);
@@ -135,6 +146,12 @@ export async function POST(req: Request) {
     return NextResponse.json({ success: true, answer: cleanAnswer, action });
   } catch (err: any) {
     console.error('Ask About Calendar Error:', err);
+    if (err instanceof ModelsUnavailableError) {
+      return NextResponse.json(
+        { error: 'The AI is busy right now. Give it a few seconds and ask again.' },
+        { status: 503 },
+      );
+    }
     return NextResponse.json({ error: err.message || 'Server error' }, { status: 500 });
   }
 }
